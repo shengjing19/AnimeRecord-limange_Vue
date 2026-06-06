@@ -1,6 +1,7 @@
 <p align="center">
   <img src="./logo.png" alt="limange Logo" width="180" />
 </p>
+
 ## 项目概览
 
 `limange_Vue` 是 limange 动漫记录程序的前端项目，项目采用单页应用结构，桌面端使用侧边栏导航，移动端使用底部悬浮导航与二级全屏页面，保证同一套业务在不同设备上拥有合适的操作路径。
@@ -162,3 +163,4 @@ npm run preview
 - 不建议在组件中直接拼接后端完整 URL，应优先通过 API 封装调用。
 
 ## 许可证
+[GPL-3.0 License](https://github.com/shengjing19/AnimeRecord-limange_Vue/blob/master/LICENSE)
