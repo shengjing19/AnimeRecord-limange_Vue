@@ -1,0 +1,113 @@
+/**
+ * limange - styles/global.css
+ * 全局基础样式
+ * by shengjing19(Hisx12123)
+ * created 2026-05-31
+ */
+
+@import './variables.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body {
+  width: 100vw;
+  height: 100vh;
+  /* 解决移动端布局被状态栏或刘海遮挡的关键：安全区域变量 */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  overflow: hidden;
+  overflow-x: hidden; /* 双重锁定 */
+  color: var(--sys-text-primary);
+  /* 解决移动端点击高亮 */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 针对 iOS Webview 的弹性滚动优化 */
+#app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 强制清除所有可能引起横向滑动的元素 */
+.app-container {
+  width: 100vw;
+  height: 100%;
+  overflow: hidden;
+  overflow-x: hidden;
+  display: flex;
+}
+
+/* 使用伪元素作为底层固定背景，推入GPU独立图层，解决滚动重绘卡顿 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url('/img/downloaded-image.jpg');
+  background-size: cover;
+  background-position: center;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* 纯色背景主题：卸载图片层释放内存 */
+body.theme-solid-color::before {
+  display: none;
+}
+
+body.theme-solid-color {
+  background-color: #ffffff;
+}
+
+/* 隐藏默认背景层 */
+.ambient-background {
+  display: none !important;
+}
+
+/* ======= 加载动画 ======= */
+.loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.loader-circle {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(0, 0, 0, 0.05);
+  border-top: 3px solid var(--sys-blue);
+  border-radius: 50%;
+  animation: spin 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ======= 通用fade过渡 ======= */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}

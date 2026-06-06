@@ -1,0 +1,24 @@
+{
+  "name": "animerecord-vue",
+  "version": "1.0.1",
+  "private": true,
+  "description": "limange - 动漫记录",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "animejs": "^4.4.1",
+    "axios": "^1.7.2",
+    "echarts": "^5.5.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.27",
+    "vue-router": "^4.3.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "postcss-pxtorem": "^6.1.0",
+    "vite": "^5.2.11"
+  }
+}

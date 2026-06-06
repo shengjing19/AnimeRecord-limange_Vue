@@ -1,0 +1,21 @@
+/**
+ * limange - styles/variables.css
+ * 全局CSS变量定义
+ * by shengjing19(Hisx12123)
+ * created 2026-05-31
+ */
+
+:root {
+  /* 玻璃材质变量 */
+  --liquid-surface: rgba(255, 255, 255, 0.65);
+  --liquid-border: rgba(255, 255, 255, 0.6);
+  --liquid-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --liquid-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 0 20px rgba(255, 255, 255, 0.3);
+
+  /* 系统色彩 */
+  --sys-blue: #007aff;
+  --sys-text-primary: #1d1d1f;
+  --sys-text-secondary: #5e5e63;
+  --super-blur: saturate(150%) blur(40px);
+}
