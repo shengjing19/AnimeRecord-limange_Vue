@@ -7,6 +7,68 @@
 `limange_Vue` 是 limange 动漫记录程序的前端项目，项目采用单页应用结构，桌面端使用侧边栏导航，移动端使用底部悬浮导航与二级全屏页面，保证同一套业务在不同设备上拥有合适的操作路径。
 <br>Tips:后端项目详见主页Newlimange
 
+## 界面预览(移动端)
+
+移动端围绕手机纵向屏幕做了独立布局，登录、主页浏览与数据管理流程均可在移动设备上完成。
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="./read-imags/mob/login.gif" alt="移动端登录与初始化预览" width="220" />
+      <br />
+      <sub>登录与初始化</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="./read-imags/mob/main.gif" alt="移动端主页与底部导航预览" width="220" />
+      <br />
+      <sub>主页与底部导航</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="./read-imags/mob/ad.gif" alt="移动端数据管理与添加中心预览" width="220" />
+      <br />
+      <sub>数据管理与添加中心</sub>
+    </td>
+  </tr>
+</table>
+
+## 界面预览(PC端)
+
+PC 端以侧边栏承载分类导航、数据管理与应用设置，适合在桌面环境下进行浏览和维护。
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./read-imags/PC/login.png" alt="PC端登录页预览" />
+      <br />
+      <sub>登录页</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="./read-imags/PC/main1.png" alt="PC端主页列表预览" />
+      <br />
+      <sub>主页列表</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="./read-imags/PC/main2.png" alt="PC端动漫详情页预览" />
+      <br />
+      <sub>动漫详情</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="./read-imags/PC/ad1.png" alt="PC端数据管理列表预览" />
+      <br />
+      <sub>数据管理列表</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="./read-imags/PC/ad2.png" alt="PC端动漫添加中心预览" />
+      <br />
+      <sub>动漫添加中心</sub>
+    </td>
+  </tr>
+</table>
+
 ## 技术栈
 
 | 类型 | 技术 |
