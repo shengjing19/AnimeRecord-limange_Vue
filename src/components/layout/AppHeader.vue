@@ -124,7 +124,7 @@ function handleScroll() {
     padding: max(20px, calc(env(safe-area-inset-top) + 20px)) 24px 16px;
     height: auto;
     min-height: 100px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 1);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);

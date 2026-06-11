@@ -55,7 +55,7 @@
           </div>
 
           <!-- 移动端卡片式列表 -->
-          <div class="mobile-card-list mobile-only custom-scrollbar">
+          <div class="mobile-card-list mobile-only custom-scrollbar" @scroll.passive="collapseMobilePagePill">
             <div v-if="animeList.length === 0" class="empty-mobile">暂无数据</div>
             <div v-for="anime in animeList" :key="anime.id" class="admin-mobile-card">
               <div class="card-left">
@@ -83,12 +83,105 @@
                 </div>
               </div>
             </div>
-            <Pagination
-              :total-pages="totalPages"
-              :current-page="currentPage"
-              @change="loadList(currentView, $event)"
-            />
           </div>
+
+          <!--
+            移动端悬浮页码药丸：
+            仅承担分页状态提示与前后翻页入口，避免与底部功能菜单混用同一点击层级。
+          -->
+          <transition name="page-pill-fade">
+            <div
+              v-if="showMobilePagePill"
+              ref="mobilePagePillRef"
+              :class="[
+                'mobile-page-pill',
+                'mobile-only',
+                {
+                  'is-expanded': isPagePillExpanded,
+                  'is-dock-collapsed': isDockCollapsed
+                }
+              ]"
+              role="navigation"
+              aria-label="移动端分页"
+            >
+              <button
+                v-if="!isPagePillExpanded"
+                type="button"
+                class="page-pill-compact"
+                aria-label="展开分页控制"
+                :aria-expanded="false"
+                @click="expandMobilePagePill"
+              >
+                <span>{{ currentPage }} / {{ totalPages }}</span>
+                <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>
+              </button>
+
+              <template v-else>
+                <div class="page-pill-main-row">
+                  <button
+                    type="button"
+                    class="page-pill-action"
+                    :disabled="currentPage <= 1"
+                    aria-label="上一页"
+                    @click="changeMobilePage(-1)"
+                  >
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="page-pill-current"
+                    aria-label="收起分页控制"
+                    :aria-expanded="true"
+                    @click="collapseMobilePagePill"
+                  >
+                    <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
+                    <small>目标 {{ pageJumpDraftValue }} 页</small>
+                  </button>
+                  <button
+                    type="button"
+                    class="page-pill-action"
+                    :disabled="currentPage >= totalPages"
+                    aria-label="下一页"
+                    @click="changeMobilePage(1)"
+                  >
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+
+                <input
+                  type="range"
+                  class="page-pill-range"
+                  min="1"
+                  :max="totalPages"
+                  :value="pageJumpDraftValue"
+                  aria-label="快速选择目标页"
+                  @input="handlePageJumpRangeInput"
+                  @change="jumpToMobilePage"
+                />
+
+                <div class="page-pill-jump-row">
+                  <label class="page-pill-input-wrap">
+                    <span>目标</span>
+                    <input
+                      :value="pageJumpDraft"
+                      type="text"
+                      inputmode="numeric"
+                      pattern="[0-9]*"
+                      maxlength="6"
+                      autocomplete="off"
+                      aria-label="输入目标页码"
+                      @focus="clearPagePillCollapseTimer"
+                      @input="handlePageJumpInput"
+                      @keydown.enter.prevent="jumpToMobilePage"
+                    />
+                  </label>
+                  <button type="button" class="page-pill-jump-btn" @click="jumpToMobilePage">
+                    跳转
+                  </button>
+                </div>
+              </template>
+            </div>
+          </transition>
 
           <!-- 桌面端表格视图 -->
           <div class="table-wrapper custom-scrollbar desktop-only">
@@ -167,7 +260,9 @@
                   />
                   <button @click="handleSearch" :disabled="isSearching">
                     <i v-if="isSearching" class="fa-solid fa-spinner fa-spin"></i>
-                    <span v-else>检索</span>
+                    <!-- 移动端使用固定图标按钮，避免文字按钮挤压输入框导致搜索栏溢出屏幕。 -->
+                    <i v-else class="fa-solid fa-magnifying-glass mobile-search-submit-icon" aria-hidden="true"></i>
+                    <span v-if="!isSearching">检索</span>
                   </button>
                 </div>
                 
@@ -439,8 +534,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
+import { animate, cubicBezier } from 'animejs';
 import Pagination from '@/components/admin/Pagination.vue';
 import { animeApi } from '@/api/anime';
 import { useNotify } from '@/composables/useNotify';
@@ -457,6 +553,18 @@ const isDemoAccount = computed(() => authStore.isDemo);
 /** 导航项折叠状态 */
 const isDockCollapsed = ref(false);
 
+/** 移动端分页药丸展开状态，默认保持小体积以减少对列表内容的遮挡。 */
+const isPagePillExpanded = ref(false);
+
+/** 移动端分页胶囊DOM引用，用于 Dock 状态切换时执行柔和位移动画。 */
+const mobilePagePillRef = ref(null);
+
+/** 分页药丸自动收起定时器句柄，组件销毁时必须清理。 */
+let pagePillCollapseTimer = null;
+
+/** Dock 展开/收起时分页胶囊需要跨越的垂直距离，与 CSS bottom 差值保持一致。 */
+const PAGE_PILL_DOCK_SHIFT = 104;
+
 /** 原始导航项配置 */
 const baseNavItems = [
   { key: 'add', label: '添加新番', icon: 'fa-solid fa-plus-circle' },
@@ -471,10 +579,13 @@ const navItems = computed(() =>
 );
 
 /** 当前视图 */
-const currentView = ref('all');
+const currentView = ref(isDemoAccount.value ? 'all' : 'add');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const animeList = ref([]);
+
+/** 移动端快速跳页输入草稿，只保存用户输入的数字文本，提交前统一夹紧。 */
+const pageJumpDraft = ref('1');
 
 /** 视图标题 */
 const viewTitle = computed(() => {
@@ -586,6 +697,148 @@ const editForm = reactive({
 let editCoverFile = null;
 
 /**
+ * 将任意页码规整到安全范围，避免异常入参触发越界分页请求。
+ * @param {unknown} page - 待处理页码
+ * @param {unknown} total - 总页数
+ * @returns {number} 安全页码
+ */
+function clampPage(page, total = totalPages.value) {
+  const safeTotal = Math.max(1, Math.trunc(Number(total)) || 1);
+  const safePage = Math.trunc(Number(page)) || 1;
+  return Math.min(Math.max(safePage, 1), safeTotal);
+}
+
+/** 移动端悬浮页码药丸显示条件：仅列表视图、多页数据、无模态框时启用。 */
+const showMobilePagePill = computed(() =>
+  currentView.value !== 'add' && totalPages.value > 1 && !showAddModal.value && !showEditModal.value
+);
+
+/** 需要分页胶囊的列表页会自动收起 Dock，模态框显隐不改变该判定。 */
+const shouldAutoCollapseDock = computed(() => currentView.value !== 'add' && totalPages.value > 1);
+
+/** 快速跳页草稿对应的安全页码，用于滑杆和目标页提示。 */
+const pageJumpDraftValue = computed(() =>
+  clampPage(pageJumpDraft.value || currentPage.value, totalPages.value)
+);
+
+/** 清理分页药丸自动收起定时器，避免重复计时或组件卸载后写入状态。 */
+function clearPagePillCollapseTimer() {
+  if (pagePillCollapseTimer) {
+    clearTimeout(pagePillCollapseTimer);
+    pagePillCollapseTimer = null;
+  }
+}
+
+/** 展开后短暂停留，减少悬浮控件长期遮挡列表内容。 */
+function schedulePagePillCollapse() {
+  clearPagePillCollapseTimer();
+  pagePillCollapseTimer = setTimeout(() => {
+    isPagePillExpanded.value = false;
+    pagePillCollapseTimer = null;
+  }, 1800);
+}
+
+/** 展开分页药丸，作为从页码提示进入完整分页控制的唯一入口。 */
+function expandMobilePagePill() {
+  syncPageJumpDraft(currentPage.value);
+  isPagePillExpanded.value = true;
+  clearPagePillCollapseTimer();
+}
+
+/** 主动收起分页药丸，滚动列表或点按中间区域时调用。 */
+function collapseMobilePagePill() {
+  if (!isPagePillExpanded.value) return;
+  isPagePillExpanded.value = false;
+  clearPagePillCollapseTimer();
+}
+
+/** 同步快速跳页草稿，确保展开面板时默认指向当前页。 */
+function syncPageJumpDraft(page = currentPage.value) {
+  pageJumpDraft.value = String(clampPage(page, totalPages.value));
+}
+
+/**
+ * 过滤页码输入，仅保留数字，防止非法字符进入分页请求链路。
+ * @param {InputEvent} event - 输入事件
+ */
+function handlePageJumpInput(event) {
+  pageJumpDraft.value = String(event.target.value || '').replace(/\D/g, '');
+}
+
+/**
+ * 滑杆快速选择目标页，只更新草稿页；释放滑杆时再触发跳转。
+ * @param {InputEvent} event - 滑杆输入事件
+ */
+function handlePageJumpRangeInput(event) {
+  clearPagePillCollapseTimer();
+  syncPageJumpDraft(event.target.value);
+}
+
+/**
+ * 跳转到用户指定页码，所有入口统一夹紧页码范围。
+ * @param {Event | number | string} payload - DOM事件或目标页码
+ */
+function jumpToMobilePage(payload) {
+  const rawPage = typeof payload === 'number' || typeof payload === 'string'
+    ? payload
+    : pageJumpDraft.value;
+  const nextPage = clampPage(rawPage, totalPages.value);
+
+  syncPageJumpDraft(nextPage);
+  if (nextPage === currentPage.value) {
+    schedulePagePillCollapse();
+    return;
+  }
+
+  loadList(currentView.value, nextPage);
+  schedulePagePillCollapse();
+}
+
+/**
+ * 使用 animejs 4 平滑衔接分页胶囊在 Dock 上方/底部空白区之间的位置变化。
+ * @param {boolean} collapsed - Dock 是否处于收起态
+ */
+async function animatePagePillDockShift(collapsed) {
+  if (!showMobilePagePill.value) return;
+  await nextTick();
+
+  const el = mobilePagePillRef.value;
+  if (!el) return;
+
+  const fromY = collapsed ? -PAGE_PILL_DOCK_SHIFT : PAGE_PILL_DOCK_SHIFT;
+  animate(el, {
+    translateY: [fromY, 0],
+    opacity: [0.68, 1],
+    duration: 360,
+    ease: cubicBezier(0.22, 1, 0.36, 1)
+  });
+}
+
+/** 根据分页胶囊需求自动收起或还原 Dock。 */
+function syncMobileDockState() {
+  if (window.innerWidth > 768) return;
+  isDockCollapsed.value = shouldAutoCollapseDock.value;
+  if (shouldAutoCollapseDock.value) {
+    collapseMobilePagePill();
+  }
+}
+
+/**
+ * 移动端悬浮药丸翻页入口。
+ * @param {number} offset - 翻页偏移量，-1 为上一页，1 为下一页
+ */
+function changeMobilePage(offset) {
+  const nextPage = clampPage(currentPage.value + offset, totalPages.value);
+  if (nextPage === currentPage.value) {
+    schedulePagePillCollapse();
+    return;
+  }
+  syncPageJumpDraft(nextPage);
+  loadList(currentView.value, nextPage);
+  schedulePagePillCollapse();
+}
+
+/**
  * 切换导航视图
  */
 function switchNav(key) {
@@ -595,6 +848,8 @@ function switchNav(key) {
   }
 
   currentView.value = key;
+  collapseMobilePagePill();
+  syncMobileDockState();
   if (key !== 'add') {
     currentPage.value = 1;
     loadList(key, 1);
@@ -606,10 +861,16 @@ function switchNav(key) {
  */
 async function loadList(type, page) {
   try {
-    const res = await animeApi.getAdminList(type, page);
-    animeList.value = res.data.content || [];
-    totalPages.value = res.data.totalPages || 1;
-    currentPage.value = res.data.number + 1;
+    const safeRequestPage = clampPage(page);
+    const res = await animeApi.getAdminList(type, safeRequestPage);
+    const data = res?.data || {};
+    const safeTotalPages = Math.max(1, Math.trunc(Number(data.totalPages)) || 1);
+    const backendPage = Math.trunc(Number(data.number)) + 1;
+
+    animeList.value = Array.isArray(data.content) ? data.content : [];
+    totalPages.value = safeTotalPages;
+    currentPage.value = clampPage(Number.isFinite(backendPage) ? backendPage : safeRequestPage, safeTotalPages);
+    syncPageJumpDraft(currentPage.value);
   } catch (err) {
     message({ content: '数据加载失败', type: 'error' });
   }
@@ -711,6 +972,7 @@ async function submitAdd() {
     closeAddModal();
     loadList('all', 1);
     currentView.value = 'all';
+    syncMobileDockState();
   } catch (err) {
     message({ content: '添加失败: ' + (err.response?.data || '未知错误'), type: 'error' });
   }
@@ -821,8 +1083,31 @@ async function handleDelete(id) {
   }
 }
 
+watch(
+  shouldAutoCollapseDock,
+  () => {
+    syncMobileDockState();
+  },
+  { flush: 'post' }
+);
+
+watch(
+  isDockCollapsed,
+  (collapsed, previous) => {
+    if (collapsed === previous) return;
+    animatePagePillDockShift(collapsed);
+  },
+  { flush: 'post' }
+);
+
 onMounted(() => {
-  loadList('all', 1);
+  if (currentView.value !== 'add') {
+    loadList(currentView.value, 1);
+  }
+});
+
+onBeforeUnmount(() => {
+  clearPagePillCollapseTimer();
 });
 </script>
 
@@ -1159,6 +1444,7 @@ onMounted(() => {
   border-radius: 100px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
   width: 100%;
+  box-sizing: border-box;
   transition: 0.3s;
 }
 
@@ -1167,14 +1453,16 @@ onMounted(() => {
   box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
 }
 
-.modern-search-bar i { color: #9ca3af; margin-right: 15px; font-size: 18px; }
+.modern-search-bar > i { color: #9ca3af; margin-right: 15px; font-size: 18px; }
 
 .modern-search-bar input {
   flex: 1;
+  min-width: 0;
   border: none;
   outline: none;
   font-size: 16px;
   color: #1f2937;
+  background: transparent;
 }
 
 .modern-search-bar button {
@@ -1191,9 +1479,19 @@ onMounted(() => {
   min-width: 90px;
 }
 
+.modern-search-bar button i {
+  color: #fff;
+  margin-right: 0;
+  font-size: 16px;
+}
+
 .modern-search-bar button:disabled {
   background: #94a3b8;
   cursor: not-allowed;
+}
+
+.mobile-search-submit-icon {
+  display: none;
 }
 
 .search-results-dropdown {
@@ -1692,10 +1990,223 @@ onMounted(() => {
     display: flex !important;
     flex-direction: column;
     padding: 15px;
-    padding-bottom: 120px !important; /* 必须给底部留出悬浮按钮的空间 */
+    padding-bottom: 136px !important; /* 为底部菜单与收起态页码胶囊预留安全滚动空间 */
     gap: 12px;
     flex: 1;
     overflow-y: auto;
+  }
+
+  /* Floating Page Pill：默认以右下角小胶囊显示，展开时才提供完整翻页控制。 */
+  .mobile-page-pill {
+    position: fixed;
+    right: 18px;
+    bottom: calc(112px + env(safe-area-inset-bottom));
+    z-index: 2490;
+    width: 88px;
+    min-height: 46px;
+    padding: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.46);
+    border: 1px solid rgba(255, 255, 255, 0.46);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    pointer-events: auto;
+    transition: width 0.24s ease, background 0.24s ease, box-shadow 0.24s ease;
+  }
+
+  .mobile-page-pill.is-expanded {
+    width: min(326px, calc(100vw - 42px));
+    min-height: 132px;
+    padding: 10px;
+    border-radius: 24px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.58);
+  }
+
+  .mobile-page-pill.is-dock-collapsed {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .page-pill-compact {
+    width: 100%;
+    height: 34px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.54);
+    color: #1e293b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .page-pill-compact:active {
+    transform: scale(0.94);
+    background: rgba(239, 246, 255, 0.7);
+  }
+
+  .page-pill-compact:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+
+  .page-pill-compact i {
+    color: #2563eb;
+    font-size: 11px;
+  }
+
+  .page-pill-main-row,
+  .page-pill-jump-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .page-pill-action {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  }
+
+  .page-pill-action:active:not(:disabled) {
+    transform: scale(0.92);
+    background: rgba(37, 99, 235, 0.16);
+  }
+
+  .page-pill-action:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+
+  .page-pill-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.38;
+  }
+
+  .page-pill-current {
+    position: relative;
+    min-width: 0;
+    flex: 1;
+    min-height: 40px;
+    padding: 5px 12px 10px;
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.56);
+    color: #1e293b;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .page-pill-current span {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .page-pill-current small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .page-pill-range {
+    width: 100%;
+    height: 18px;
+    accent-color: #2563eb;
+    cursor: pointer;
+  }
+
+  .page-pill-input-wrap {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.56);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .page-pill-input-wrap span {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .page-pill-input-wrap input {
+    width: 100%;
+    min-width: 0;
+    height: 28px;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #1e293b;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 900;
+  }
+
+  .page-pill-jump-btn {
+    flex: 0 0 68px;
+    height: 38px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.9);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
+  }
+
+  .page-pill-jump-btn:active {
+    transform: scale(0.96);
+  }
+
+  .page-pill-jump-btn:focus-visible,
+  .page-pill-input-wrap input:focus-visible {
+    outline: 2px solid rgba(37, 99, 235, 0.45);
+    outline-offset: 2px;
+  }
+
+  .page-pill-fade-enter-active,
+  .page-pill-fade-leave-active {
+    transition: opacity 0.22s ease, transform 0.22s ease;
+  }
+
+  .page-pill-fade-enter-from,
+  .page-pill-fade-leave-to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
   }
 
   .admin-mobile-card {
@@ -1789,23 +2300,57 @@ onMounted(() => {
 
   /* 添加新番页面适配 */
   .search-landing {
+    width: 100%;
+    box-sizing: border-box;
     padding: 40px 20px;
     padding-bottom: 150px !important; /* 增加底部留白 */
+  }
+  .hero-content {
+    width: 100%;
+    max-width: 100%;
   }
   .main-title { font-size: 28px !important; }
   .sub-title { font-size: 14px !important; margin-bottom: 30px !important; }
   .search-container {
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
   .modern-search-bar {
     width: 100% !important;
-    padding: 5px 5px 5px 15px !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    gap: 8px;
+    padding: 6px 6px 6px 14px !important;
+  }
+  .modern-search-bar > i {
+    flex: 0 0 auto;
+    margin-right: 0 !important;
+  }
+  .modern-search-bar input {
+    min-width: 0 !important;
+    font-size: 14px !important;
   }
   .modern-search-bar button { 
-    padding: 10px 24px !important; 
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px !important;
+    height: 44px;
+    padding: 0 !important;
+    border-radius: 50% !important;
     font-size: 14px !important; 
     white-space: nowrap !important;
-    min-width: fit-content !important;
+  }
+  .modern-search-bar button span {
+    display: none;
+  }
+  .modern-search-bar button i {
+    margin-right: 0 !important;
+    color: #fff !important;
+    font-size: 16px !important;
+  }
+  .mobile-search-submit-icon {
+    display: inline-flex;
   }
   
   .search-results-dropdown {

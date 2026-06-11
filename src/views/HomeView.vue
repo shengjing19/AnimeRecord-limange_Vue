@@ -12,7 +12,7 @@
     <!-- 主内容区 -->
     <main class="app-main" ref="mainContainer">
       <!-- 顶部导航头 -->
-      <AppHeader :title="pageTitle" />
+      <AppHeader v-if="activeTab !== 'stats' || !cachedData.stats" :title="pageTitle" />
 
       <!-- 内容区域，使用KeepAlive缓存机制 -->
       <div class="content-section" ref="contentSection">
@@ -81,56 +81,112 @@
 
         <!-- 数据统计 -->
         <transition name="mobile-modal">
-          <div v-if="activeTab === 'stats' && cachedData.stats" class="mobile-fullscreen-modal">
-            <div class="modal-topbar mobile-only">
-              <button class="modal-back-btn" @click="handleTabChange({ key: 'settings', label: '我的' })">
-                <i class="fas fa-arrow-left"></i>
-              </button>
-              <span class="modal-title">数据统计</span>
-            </div>
-            <div class="modal-scroll-content">
-              <div class="stats-grid">
-                <div class="stat-card">
-                  <i class="fas fa-eye"></i>
-                  <h3>{{ cachedData.stats.totalFinished }}</h3>
-                  <p>已看完</p>
+          <div v-if="activeTab === 'stats' && cachedData.stats" class="mobile-fullscreen-modal stats-dashboard-page">
+            <div class="stats-dashboard-shell">
+              <header class="stats-dashboard-header">
+                <button
+                  class="stats-back-btn mobile-only"
+                  type="button"
+                  aria-label="返回我的"
+                  @click="handleTabChange({ key: 'settings', label: '我的' })"
+                >
+                  <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="stats-title-group">
+                  <h2>数据统计</h2>
+                  <p>查看你的动漫观看档案</p>
                 </div>
-                <div class="stat-card">
-                  <i class="fas fa-heart"></i>
-                  <h3>{{ cachedData.stats.totalFavorite }}</h3>
-                  <p>最喜爱</p>
-                </div>
-                <div class="stat-card">
-                  <i class="fas fa-running"></i>
-                  <h3>{{ cachedData.stats.totalWatching }}</h3>
-                  <p>正在追</p>
-                </div>
-                <div class="stat-card">
-                  <i class="fas fa-calendar-alt"></i>
-                  <h3>{{ cachedData.stats.lastSevenDaysTotal }}</h3>
-                  <p>近七天观看</p>
-                </div>
-              </div>
+              </header>
 
-              <div class="stats-chart-container">
-                <div class="chart-box">
-                  <h4>
-                    <i class="fas fa-calendar-week" style="color:var(--sys-blue); margin-right:8px;"></i>
-                    近7天观看统计
-                  </h4>
-                  <div ref="weeklyChartDom" class="chart-area"></div>
-                </div>
-                <div class="chart-box">
-                  <h4>
-                    <i class="fas fa-chart-line" style="color:var(--sys-blue); margin-right:8px;"></i>
-                    {{ currentYear }}年度观看趋势
-                  </h4>
-                  <div ref="annualChartDom" class="chart-area"></div>
-                </div>
+              <div class="modal-scroll-content stats-dashboard-scroll">
+                <section class="stats-overview-grid" aria-label="动漫观看总览">
+                  <article class="stats-total-card">
+                    <span class="stats-card-label">累计已看</span>
+                    <div class="stats-total-value">
+                      <strong>{{ statsSummary.totalFinished }}</strong>
+                      <span>部</span>
+                    </div>
+                    <p class="stats-total-note">
+                      <i class="fas fa-star" aria-hidden="true"></i>
+                      这是你与动漫相伴的每一天！
+                      <i class="fas fa-star" aria-hidden="true"></i>
+                    </p>
+                  </article>
+
+                  <div class="stats-mini-grid">
+                    <article
+                      v-for="item in statsMetricCards"
+                      :key="item.key"
+                      class="stats-mini-card"
+                    >
+                      <span :class="['stats-icon-badge', item.tone]">
+                        <i :class="item.icon" aria-hidden="true"></i>
+                      </span>
+                      <span class="stats-mini-label">{{ item.label }}</span>
+                      <strong>{{ item.value }} <small>{{ item.unit }}</small></strong>
+                      <p>{{ item.desc }}</p>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="stats-chart-grid" aria-label="动漫观看趋势">
+                  <article class="stats-chart-card">
+                    <div class="stats-card-heading">
+                      <h3>
+                        <i class="fas fa-chart-simple" aria-hidden="true"></i>
+                        近7天观看部数
+                      </h3>
+                    </div>
+                    <p class="stats-chart-desc">
+                      近7天共观看 <strong>{{ statsSummary.weeklyTotal }}</strong> 部，最高单日
+                      <strong>{{ statsSummary.weeklyPeak }}</strong> 部
+                    </p>
+                    <div ref="weeklyChartDom" class="stats-chart-area"></div>
+                  </article>
+
+                  <article class="stats-chart-card">
+                    <div class="stats-card-heading">
+                      <h3>
+                        <i class="fas fa-chart-column" aria-hidden="true"></i>
+                        {{ currentYear }} 年度观看趋势
+                      </h3>
+                      <span class="stats-chart-pill">部数</span>
+                    </div>
+                    <div ref="annualChartDom" class="stats-chart-area"></div>
+                  </article>
+                </section>
+
+                <section class="stats-report-card" aria-label="年度观看报告">
+                  <div class="stats-report-content">
+                    <h3>
+                      <i class="fas fa-award" aria-hidden="true"></i>
+                      {{ currentYear }} 年观看报告
+                    </h3>
+                    <div class="stats-report-grid">
+                      <div class="stats-report-item">
+                        <span class="report-icon blue"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
+                        <p>看过</p>
+                        <strong>{{ statsSummary.totalFinished }} <small>部动漫</small></strong>
+                      </div>
+                      <div class="stats-report-item">
+                        <span class="report-icon purple"><i class="fas fa-book-open" aria-hidden="true"></i></span>
+                        <p>共观看</p>
+                        <strong>{{ statsSummary.annualTotal }} <small>部</small></strong>
+                      </div>
+                      <div class="stats-report-item">
+                        <span class="report-icon cyan"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
+                        <p>最活跃的月份是</p>
+                        <strong>{{ statsSummary.peakMonth }}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="stats-report-art" aria-hidden="true"></div>
+                </section>
               </div>
             </div>
           </div>
         </transition>
+        <p v-if="activeTab === 'stats' && !loading && !cachedData.stats" class="empty-text">暂无统计数据</p>
 
         <!-- 设置页面 -->
         <div v-if="activeTab === 'settings'" class="ios-section">
@@ -450,8 +506,16 @@
       @close="detailVisible = false"
     />
 
-    <!-- 移动端底部导航栏 -->
-    <AppBottomBar :active-tab="activeTab" @tab-change="handleTabChange" />
+    <!--
+      移动端底部导航栏：
+      iOS WebView/Safari 对 fixed + backdrop-filter 的层叠上下文存在穿透风险，
+      进入二级全屏页时直接卸载底部栏，避免三岛菜单残留在页面上方。
+    -->
+    <AppBottomBar
+      v-if="shouldShowBottomBar"
+      :active-tab="activeTab"
+      @tab-change="handleTabChange"
+    />
   </div>
 </template>
 
@@ -501,6 +565,69 @@ const currentAnime = ref(null);
 const sourceRect = ref(null);
 const sourceImg = ref(null);
 const currentYear = new Date().getFullYear();
+
+/** 移动端二级全屏页集合，这些页面拥有自己的返回按钮，不应保留底部三岛菜单。 */
+const MOBILE_FULLSCREEN_TABS = new Set(['about', 'demo-user']);
+
+/** 统计数值展示上限，避免异常接口数据撑爆页面布局 */
+const MAX_STAT_VALUE = 999999;
+
+/** 年度趋势固定展示 12 个月，不提供前端年份选择入口 */
+const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}月`);
+
+/**
+ * @function toSafeStatNumber
+ * @description 将后端统计字段规整为有限非负整数，阻断 NaN、Infinity、负数和超大值污染视图。
+ * @param {unknown} value - 接口返回的原始统计值
+ * @returns {number} 安全可展示的统计值
+ */
+function toSafeStatNumber(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return 0;
+  return Math.min(Math.trunc(numberValue), MAX_STAT_VALUE);
+}
+
+/**
+ * @function buildRecentDateLabels
+ * @description 生成近七天日期标签，作为后端缺失 labels 时的安全兜底。
+ * @returns {string[]} 近七天 MM-DD 标签
+ */
+function buildRecentDateLabels() {
+  const formatter = new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const today = new Date();
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    return formatter.format(date).replace(/\//g, '-');
+  });
+}
+
+/**
+ * @function normalizeStatSeries
+ * @description 规整图表序列，确保标签和值一一对应，并限制最大渲染数量。
+ * @param {unknown} labels - 后端返回的标签列表
+ * @param {unknown} values - 后端返回的数值列表
+ * @param {string[]} fallbackLabels - 标签缺失时的兜底列表
+ * @param {number} maxItems - 最大渲染数量
+ * @returns {{ labels: string[], values: number[] }} 安全图表数据
+ */
+function normalizeStatSeries(labels, values, fallbackLabels, maxItems) {
+  const sourceLabels = Array.isArray(labels) && labels.length > 0 ? labels : fallbackLabels;
+  const sourceValues = Array.isArray(values) ? values : [];
+  const length = Math.min(
+    maxItems,
+    Math.max(sourceLabels.length, sourceValues.length, fallbackLabels.length)
+  );
+
+  return {
+    labels: Array.from({ length }, (_, index) => String(sourceLabels[index] ?? fallbackLabels[index] ?? '')),
+    values: Array.from({ length }, (_, index) => toSafeStatNumber(sourceValues[index]))
+  };
+}
 
 /** 演示账户用户名最大长度，与后端校验保持一致 */
 const DEMO_USERNAME_MAX_LENGTH = 10;
@@ -782,6 +909,75 @@ const cachedData = reactive({
 });
 
 /**
+ * 当前是否处于移动端二级全屏页。
+ * 统计页只有在数据缓存就绪并真正渲染全屏面板时才隐藏底部栏，加载失败时保留导航恢复路径。
+ */
+const isMobileFullscreenPage = computed(() =>
+  MOBILE_FULLSCREEN_TABS.has(activeTab.value)
+  || (activeTab.value === 'stats' && !!cachedData.stats)
+);
+
+/** 底部三岛菜单渲染开关，详情页和二级全屏页都不保留底部栏。 */
+const shouldShowBottomBar = computed(() => !detailVisible.value && !isMobileFullscreenPage.value);
+
+/** 统计页展示摘要，统一从已清洗缓存中派生，避免模板层重复计算 */
+const statsSummary = computed(() => {
+  const stats = cachedData.stats || {};
+  const weeklyValues = Array.isArray(stats.weeklyValues) ? stats.weeklyValues : [];
+  const annualLabels = Array.isArray(stats.annualLabels) ? stats.annualLabels : MONTH_LABELS;
+  const annualValues = Array.isArray(stats.annualValues) ? stats.annualValues : [];
+  const currentMonthIndex = new Date().getMonth();
+  const peakIndex = annualValues.reduce(
+    (bestIndex, value, index) => (value > (annualValues[bestIndex] ?? 0) ? index : bestIndex),
+    0
+  );
+
+  return {
+    totalFinished: toSafeStatNumber(stats.totalFinished),
+    totalFavorite: toSafeStatNumber(stats.totalFavorite),
+    totalWatching: toSafeStatNumber(stats.totalWatching),
+    weeklyTotal: weeklyValues.reduce((sum, value) => sum + toSafeStatNumber(value), 0),
+    weeklyPeak: weeklyValues.reduce((peak, value) => Math.max(peak, toSafeStatNumber(value)), 0),
+    annualTotal: annualValues.reduce((sum, value) => sum + toSafeStatNumber(value), 0),
+    currentMonthValue: toSafeStatNumber(annualValues[currentMonthIndex]),
+    peakMonth: annualValues.length > 0 && annualValues[peakIndex] > 0
+      ? String(annualLabels[peakIndex] || MONTH_LABELS[peakIndex] || '暂无')
+      : '暂无'
+  };
+});
+
+/** 顶部三枚指标卡配置，PC 与移动端共用同一套展示内容 */
+const statsMetricCards = computed(() => [
+  {
+    key: 'watching',
+    label: '正在追',
+    value: statsSummary.value.totalWatching,
+    unit: '部',
+    desc: '持续更新中',
+    icon: 'fas fa-tv',
+    tone: 'green'
+  },
+  {
+    key: 'favorite',
+    label: '收藏',
+    value: statsSummary.value.totalFavorite,
+    unit: '部',
+    desc: '心动的作品',
+    icon: 'fas fa-heart',
+    tone: 'pink'
+  },
+  {
+    key: 'monthly',
+    label: '本月观看',
+    value: statsSummary.value.currentMonthValue,
+    unit: '集',
+    desc: '本月已记录',
+    icon: 'fas fa-calendar-check',
+    tone: 'purple'
+  }
+]);
+
+/**
  * @function isMobileViewport
  * @description 判断当前是否处于移动端布局断点，用于区分“我的”和桌面“设置”的数据请求策略。
  * @returns {boolean} 是否为移动端视口
@@ -830,20 +1026,27 @@ async function loadTabData(tabName) {
         animeApi.getStatsAnnual()
       ]);
 
-      let lastSevenDaysTotal = 0;
-      if (weeklyRes.data && weeklyRes.data.values) {
-        lastSevenDaysTotal = weeklyRes.data.values.reduce((s, c) => s + c, 0);
-      }
+      const weeklySeries = normalizeStatSeries(
+        weeklyRes?.data?.labels,
+        weeklyRes?.data?.values,
+        buildRecentDateLabels(),
+        7
+      );
+      const annualSeries = normalizeStatSeries(
+        annualRes?.data?.labels,
+        annualRes?.data?.values,
+        MONTH_LABELS,
+        12
+      );
 
       cachedData.stats = {
-        totalFinished: mainRes.data.totalFinished || 0,
-        totalFavorite: mainRes.data.totalFavorite || 0,
-        totalWatching: mainRes.data.totalWatching || 0,
-        lastSevenDaysTotal,
-        weeklyLabels: weeklyRes.data.labels || [],
-        weeklyValues: weeklyRes.data.values || [],
-        annualLabels: annualRes.data.labels || [],
-        annualValues: annualRes.data.values || []
+        totalFinished: toSafeStatNumber(mainRes?.data?.totalFinished),
+        totalFavorite: toSafeStatNumber(mainRes?.data?.totalFavorite),
+        totalWatching: toSafeStatNumber(mainRes?.data?.totalWatching),
+        weeklyLabels: weeklySeries.labels,
+        weeklyValues: weeklySeries.values,
+        annualLabels: annualSeries.labels,
+        annualValues: annualSeries.values
       };
 
       nextTick(() => {
@@ -872,80 +1075,118 @@ async function renderCharts() {
   const annualDom = annualChartDom.value;
 
   if (weeklyDom) {
-    await renderChart(weeklyDom, cachedData.stats.weeklyLabels, cachedData.stats.weeklyValues, 'rgba(106, 90, 205, 1)', 'rgba(106, 90, 205, 0.05)', ref(weeklyChart));
+    weeklyChart = await renderChart(
+      weeklyDom,
+      cachedData.stats.weeklyLabels,
+      cachedData.stats.weeklyValues,
+      'rgba(0, 122, 255, 1)',
+      'rgba(124, 183, 255, 1)',
+      weeklyChart
+    );
   }
   if (annualDom) {
-    await renderChart(annualDom, cachedData.stats.annualLabels, cachedData.stats.annualValues, 'rgba(37, 99, 235, 1)', 'rgba(37, 99, 235, 0.05)', ref(annualChart));
+    annualChart = await renderChart(
+      annualDom,
+      cachedData.stats.annualLabels,
+      cachedData.stats.annualValues,
+      'rgba(0, 122, 255, 1)',
+      'rgba(124, 183, 255, 1)',
+      annualChart
+    );
   }
 }
 
 /**
- * 渲染单个图表（异步加载echarts）
+ * 渲染单个柱状图（异步加载echarts）
+ * @param {HTMLElement} dom - 图表挂载节点
+ * @param {string[]} labels - 横轴标签
+ * @param {number[]} values - 柱状图数值
+ * @param {string} colorTop - 渐变顶部颜色
+ * @param {string} colorBottom - 渐变底部颜色
+ * @param {import('echarts').ECharts | null} existingChart - 旧图表实例
+ * @returns {Promise<import('echarts').ECharts | null>} 新图表实例
  */
-async function renderChart(dom, labels, values, colorTop, colorBottom, instanceRef) {
-  if (!dom) return;
+async function renderChart(dom, labels, values, colorTop, colorBottom, existingChart) {
+  if (!dom) return existingChart || null;
 
   const echarts = await loadECharts();
-  if (!echarts) return;
+  if (!echarts) return existingChart || null;
 
-  // 销毁旧实例
-  if (instanceRef.value) {
-    instanceRef.value.dispose();
-    instanceRef.value = null;
+  // 销毁旧实例，防止重复 init 造成内存泄露与 resize 异常。
+  if (existingChart) {
+    existingChart.dispose();
   }
 
   const chart = echarts.init(dom);
-  instanceRef.value = chart;
+  const isMobile = window.innerWidth <= 768;
 
   const option = {
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'line' },
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-      borderColor: 'rgba(0,0,0,0.1)',
-      textStyle: { color: '#1d1d1f' }
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      borderColor: 'rgba(0, 122, 255, 0.12)',
+      borderWidth: 1,
+      textStyle: { color: '#1d1d1f', fontSize: 12 },
+      extraCssText: 'box-shadow:0 8px 24px rgba(15,23,42,0.08);border-radius:12px;'
     },
     grid: {
-      top: '15%',
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
+      top: 26,
+      left: isMobile ? 6 : 10,
+      right: isMobile ? 6 : 10,
+      bottom: 6,
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      boundaryGap: false,
       data: labels,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#5e5e63' }
+      axisLabel: {
+        color: '#5e6472',
+        fontSize: isMobile ? 10 : 12,
+        interval: 0
+      }
     },
     yAxis: {
       type: 'value',
+      minInterval: 1,
       splitLine: {
-        lineStyle: { type: 'dashed', color: 'rgba(0,0,0,0.06)' }
+        lineStyle: { type: 'dashed', color: 'rgba(15, 23, 42, 0.07)' }
       },
-      axisLabel: { color: '#5e5e63' }
+      axisLabel: {
+        color: '#5e6472',
+        fontSize: isMobile ? 10 : 12
+      }
     },
     series: [
       {
         data: values,
-        type: 'line',
-        smooth: true,
-        symbol: 'none',
-        lineStyle: { width: 3, color: colorTop },
-        areaStyle: {
-          opacity: 0.8,
+        type: 'bar',
+        barWidth: isMobile ? 14 : 18,
+        barMaxWidth: 22,
+        itemStyle: {
+          borderRadius: [8, 8, 4, 4],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: colorTop },
-            { offset: 1, color: colorBottom }
-          ])
+            { offset: 0, color: colorBottom },
+            { offset: 1, color: colorTop }
+          ]),
+          shadowColor: 'rgba(0, 122, 255, 0.22)',
+          shadowBlur: 8,
+          shadowOffsetY: 4
+        },
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 12,
+            shadowColor: 'rgba(0, 122, 255, 0.3)'
+          }
         }
       }
     ]
   };
 
   chart.setOption(option);
+  return chart;
 }
 
 /**
@@ -1095,53 +1336,391 @@ onBeforeUnmount(() => {
   margin-top: 50px;
 }
 
-/* 数据统计 */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
-  margin-bottom: 50px;
+/* 数据统计：移动端与 PC 端共用同一套信息结构，避免双端字段不一致。 */
+.stats-dashboard-page {
+  width: 100%;
 }
 
-.stat-card {
-  background: var(--liquid-surface);
-  border-radius: 24px;
-  padding: 30px;
-  border: 1px solid var(--liquid-border);
-  box-shadow: var(--liquid-shadow), var(--liquid-highlight);
-  text-align: center;
-  transition: 0.4s;
+.stats-dashboard-shell {
+  width: min(100%, 1060px);
+  margin: 0 auto;
+  position: relative;
 }
 
-.stat-card:hover {
-  transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.23);
+.stats-dashboard-header {
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 26px 0 30px;
 }
 
-.stat-card i {
-  font-size: 36px;
-  color: var(--sys-blue);
-  margin-bottom: 16px;
+.stats-title-group {
+  text-align: left;
 }
 
-.stat-card h3 {
-  font-size: 40px;
-  font-weight: 800;
-  margin-bottom: 4px;
-  color: var(--sys-text-primary);
+.stats-title-group h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 34px;
+  font-weight: 850;
+  line-height: 1.15;
 }
 
-.stat-card p {
+.stats-title-group p {
+  margin: 7px 0 0;
+  color: #7a8290;
   font-size: 15px;
-  color: var(--sys-text-secondary);
+  font-weight: 600;
 }
 
-.stats-chart-container {
+.stats-dashboard-scroll {
+  padding: 0 0 72px;
+  overflow: visible;
+}
+
+.stats-overview-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
+  grid-template-columns: minmax(320px, 1.06fr) minmax(420px, 1.32fr);
+  gap: 18px;
+  margin-bottom: 22px;
 }
 
+.stats-total-card {
+  position: relative;
+  min-height: 226px;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 30px 32px;
+  color: #ffffff;
+  background-image:
+    linear-gradient(135deg, rgba(0, 122, 255, 0.96), rgba(41, 151, 255, 0.86)),
+    url('/img/downloaded-image.jpg');
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 16px 30px rgba(0, 122, 255, 0.2);
+}
+
+.stats-total-card::before {
+  content: '';
+  position: absolute;
+  right: -34px;
+  bottom: -44px;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.stats-total-card::after {
+  content: 'limange';
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.stats-card-label {
+  position: relative;
+  z-index: 1;
+  display: block;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.stats-total-value {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 18px 0 20px;
+}
+
+.stats-total-value strong {
+  color: #ffffff;
+  font-size: 74px;
+  font-weight: 900;
+  line-height: 0.9;
+}
+
+.stats-total-value span {
+  padding-bottom: 7px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.stats-total-note {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stats-total-note i {
+  font-size: 11px;
+}
+
+.stats-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stats-mini-card {
+  min-width: 0;
+  min-height: 226px;
+  padding: 28px 18px 22px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.stats-icon-badge {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 24px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.stats-icon-badge.green {
+  background: linear-gradient(135deg, #49d7b0, #19b79e);
+}
+
+.stats-icon-badge.pink {
+  background: linear-gradient(135deg, #ff6ca2, #ff3d7f);
+}
+
+.stats-icon-badge.purple {
+  background: linear-gradient(135deg, #9a7cff, #7656e8);
+}
+
+.stats-mini-label {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.stats-mini-card strong {
+  margin-top: 10px;
+  color: #111827;
+  font-size: 35px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.stats-mini-card small {
+  color: #2563eb;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.stats-mini-card p {
+  margin-top: 14px;
+  color: #7a8290;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stats-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.2fr);
+  gap: 22px;
+  margin-bottom: 24px;
+}
+
+.stats-chart-card,
+.stats-report-card {
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+}
+
+.stats-chart-card {
+  min-width: 0;
+  padding: 26px 24px 18px;
+}
+
+.stats-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.stats-card-heading h3,
+.stats-report-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 21px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.stats-card-heading i,
+.stats-report-card h3 i {
+  color: var(--sys-blue);
+  margin-right: 10px;
+}
+
+.stats-chart-pill {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f0f7ff;
+  color: #0b73e8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.stats-chart-desc {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stats-chart-desc strong {
+  color: var(--sys-blue);
+}
+
+.stats-chart-area {
+  width: 100%;
+  height: 236px;
+}
+
+.stats-report-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 214px;
+  padding: 30px 32px;
+}
+
+.stats-report-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(0, 122, 255, 0.1), transparent 24%),
+    radial-gradient(circle at 92% 80%, rgba(139, 92, 246, 0.08), transparent 26%);
+  pointer-events: none;
+}
+
+.stats-report-content {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+}
+
+.stats-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 30px;
+}
+
+.stats-report-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: center;
+}
+
+.report-icon {
+  grid-row: span 2;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 21px;
+}
+
+.report-icon.blue {
+  background: linear-gradient(135deg, #1e9bff, #007aff);
+}
+
+.report-icon.purple {
+  background: linear-gradient(135deg, #9d6cff, #7656e8);
+}
+
+.report-icon.cyan {
+  background: linear-gradient(135deg, #22c7ff, #0b8ff0);
+}
+
+.stats-report-item p {
+  margin: 0;
+  color: #5e6472;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.stats-report-item strong {
+  color: #111827;
+  font-size: 29px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.stats-report-item small {
+  color: #111827;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.stats-report-art {
+  position: absolute;
+  right: -18px;
+  bottom: -28px;
+  width: 260px;
+  height: 190px;
+  opacity: 0.18;
+  background-image: url('/img/downloaded-image.jpg');
+  background-size: cover;
+  background-position: center;
+  border-radius: 999px 0 0 0;
+  filter: saturate(1.08);
+  pointer-events: none;
+}
+
+/* 设置页复用卡片样式，保留旧类名以兼容现有设置与演示账户模块。 */
 .chart-box {
   background: rgba(255, 255, 255, 0.55);
   border-radius: 24px;
@@ -1669,45 +2248,234 @@ onBeforeUnmount(() => {
     transform: translateY(100%) !important;
   }
   
-  /* 移动端数据统计页专项美化重构 */
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 15px !important;
-    margin-bottom: 30px !important;
+  /* 移动端数据统计页：独立收窄容器，去除右上角年份选择入口。 */
+  .mobile-fullscreen-modal.stats-dashboard-page {
+    align-items: center;
+    background: #f8fbff;
   }
-  
-  .stat-card {
-    padding: 20px 15px !important;
-    border-radius: 20px !important;
-    background: #ffffff !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04) !important;
-    border: none !important;
+
+  .stats-dashboard-shell {
+    width: min(calc(100vw - 32px), 420px);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
-  
-  .stat-card i {
-    font-size: 28px !important;
-    margin-bottom: 12px !important;
+
+  .stats-dashboard-header {
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 116px;
+    padding: max(24px, calc(env(safe-area-inset-top) + 14px)) 0 18px;
   }
-  
-  .stat-card h3 {
-    font-size: 28px !important;
+
+  .stats-title-group {
+    text-align: center;
   }
-  
-  .stat-card p {
-    font-size: 13px !important;
+
+  .stats-back-btn {
+    position: absolute;
+    left: 0;
+    bottom: 16px;
+    width: 54px;
+    height: 54px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #2563eb;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
   }
-  
-  .stats-chart-container {
-    grid-template-columns: 1fr !important;
-    gap: 20px !important;
+
+  .stats-title-group h2 {
+    font-size: 30px;
   }
-  
-  .chart-box {
-    padding: 20px !important;
-    border-radius: 20px !important;
-    background: #ffffff !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04) !important;
-    border: none !important;
+
+  .stats-title-group p {
+    font-size: 14px;
+  }
+
+  .stats-dashboard-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 0 max(34px, env(safe-area-inset-bottom));
+  }
+
+  .stats-overview-grid,
+  .stats-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-overview-grid {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .stats-total-card {
+    min-height: 154px;
+    padding: 22px;
+    border-radius: 20px;
+  }
+
+  .stats-total-card::before {
+    width: 154px;
+    height: 154px;
+    right: -32px;
+    bottom: -44px;
+  }
+
+  .stats-total-card::after {
+    right: 18px;
+    bottom: 16px;
+    font-size: 30px;
+  }
+
+  .stats-card-label {
+    font-size: 20px;
+  }
+
+  .stats-total-value {
+    margin: 14px 0 18px;
+  }
+
+  .stats-total-value strong {
+    font-size: 56px;
+  }
+
+  .stats-total-value span {
+    padding-bottom: 5px;
+    font-size: 18px;
+  }
+
+  .stats-total-note {
+    min-height: 30px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .stats-mini-grid {
+    gap: 8px;
+  }
+
+  .stats-mini-card {
+    min-height: 132px;
+    padding: 14px 8px 12px;
+    border-radius: 18px;
+  }
+
+  .stats-icon-badge {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 9px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  .stats-mini-label {
+    font-size: 13px;
+  }
+
+  .stats-mini-card strong {
+    margin-top: 8px;
+    font-size: 25px;
+  }
+
+  .stats-mini-card small {
+    font-size: 12px;
+  }
+
+  .stats-mini-card p {
+    margin-top: 9px;
+    font-size: 11px;
+  }
+
+  .stats-chart-grid {
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .stats-chart-card {
+    padding: 18px 14px 12px;
+    border-radius: 20px;
+  }
+
+  .stats-card-heading {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .stats-card-heading h3,
+  .stats-report-card h3 {
+    font-size: 18px;
+  }
+
+  .stats-card-heading i,
+  .stats-report-card h3 i {
+    margin-right: 8px;
+  }
+
+  .stats-chart-pill {
+    min-height: 28px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .stats-chart-desc {
+    font-size: 13px;
+  }
+
+  .stats-chart-area {
+    height: 194px;
+  }
+
+  .stats-report-card {
+    min-height: 188px;
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+
+  .stats-report-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .stats-report-item {
+    grid-template-columns: 1fr;
+    row-gap: 8px;
+    justify-items: start;
+  }
+
+  .report-icon {
+    grid-row: auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 18px;
+  }
+
+  .stats-report-item p {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .stats-report-item strong {
+    font-size: 23px;
+  }
+
+  .stats-report-item small {
+    font-size: 12px;
+  }
+
+  .stats-report-art {
+    width: 180px;
+    height: 142px;
+    right: -54px;
+    bottom: -26px;
+    opacity: 0.1;
   }
 
   .demo-form-row {
@@ -1724,11 +2492,7 @@ onBeforeUnmount(() => {
   .demo-form {
     margin-top: 16px;
   }
-  
-  .chart-area {
-    height: 220px !important;
-  }
-  
+
   .mobile-only {
     display: flex !important;
   }
