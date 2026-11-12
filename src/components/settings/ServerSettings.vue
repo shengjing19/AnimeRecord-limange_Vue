@@ -9,8 +9,8 @@
         type="url"
         required
         placeholder="http://127.0.0.1:8231"
-        :disabled="saving"
-      /><button class="subtle-button" :disabled="saving">
+        :disabled="saving || disabled"
+      /><button class="subtle-button" :disabled="saving || disabled">
         {{ saving ? '保存中…' : '保存地址' }}
       </button>
     </div>
@@ -29,7 +29,11 @@ import { getServerUrl, saveServerUrl } from '@/utils/server';
 import { useAuthStore } from '@/stores/auth';
 import { useNotify } from '@/composables/useNotify';
 
-defineProps({ inputId: { type: String, default: 'backend-server-url' } });
+const props = defineProps({
+  inputId: { type: String, default: 'backend-server-url' },
+  disabled: { type: Boolean, default: false }
+});
+const emit = defineEmits(['saved', 'saving']);
 const serverUrl = ref(getServerUrl());
 const error = ref('');
 const saved = ref(false);
@@ -38,20 +42,23 @@ const auth = useAuthStore();
 const { confirm } = useNotify();
 
 async function save() {
-  if (saving.value) return;
+  if (saving.value || props.disabled) return;
   error.value = '';
   saved.value = false;
   if (auth.isLoggedIn && !(await confirm({ content: '更换后端服务会退出当前账户，是否继续？' })))
     return;
   saving.value = true;
+  emit('saving', true);
   try {
     serverUrl.value = await saveServerUrl(serverUrl.value);
     saved.value = true;
+    emit('saved', serverUrl.value);
     if (auth.isLoggedIn) auth.logout();
   } catch (err) {
     error.value = err.message || '无法保存地址';
   } finally {
     saving.value = false;
+    emit('saving', false);
   }
 }
 </script>

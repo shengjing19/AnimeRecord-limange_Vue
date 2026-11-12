@@ -5,13 +5,24 @@
         type="button"
         @click="appStore.setLoginStyle(appStore.loginStyle === 'console' ? 'native' : 'console')"
       >
-        {{ appStore.loginStyle === 'console' ? '原生登录' : '控制台登录' }}</button
-      ><button type="button" @click="showServerSettings = !showServerSettings">服务器设置</button>
+        {{ appStore.loginStyle === 'console' ? '原生登录' : '控制台登录' }}</button><button
+        type="button"
+        :disabled="isLoginBusy"
+        @click="showServerSettings = !showServerSettings"
+      >
+        服务器设置
+      </button>
     </div>
     <div v-if="showServerSettings" class="login-server-panel">
-      <ServerSettings input-id="login-server-url" /><button
+      <ServerSettings
+        input-id="login-server-url"
+        :disabled="isLoginSubmitting || isRememberBusy"
+        @saved="restoreRememberedLogin"
+        @saving="isServerSaving = $event"
+      /><button
         class="server-panel-close"
         aria-label="关闭服务器设置"
+        :disabled="isServerSaving"
         @click="showServerSettings = false"
       >
         <i class="fa-solid fa-xmark"></i>
@@ -77,7 +88,7 @@
             aria-label="用户名"
             autocomplete="username"
             :maxlength="MAX_USERNAME_LENGTH"
-            :disabled="isLoginSubmitting"
+            :disabled="isLoginBusy"
             required
             aria-required="true"
           />
@@ -90,7 +101,7 @@
               aria-label="密码"
               autocomplete="current-password"
               :maxlength="MAX_PASSWORD_LENGTH"
-              :disabled="isLoginSubmitting"
+              :disabled="isLoginBusy"
               required
               aria-required="true"
             />
@@ -98,7 +109,7 @@
               <button
                 type="button"
                 class="inline-action-btn toggle-pwd-btn"
-                :disabled="isLoginSubmitting"
+                :disabled="isLoginBusy"
                 @click="showLoginPassword = !showLoginPassword"
                 :title="showLoginPassword ? '隐藏密码' : '显示密码'"
                 :aria-label="showLoginPassword ? '隐藏密码' : '显示密码'"
@@ -110,7 +121,7 @@
                 class="inline-action-btn submit-btn"
                 title="点击登录"
                 aria-label="提交登录"
-                :disabled="isLoginSubmitting"
+                :disabled="isLoginBusy"
               >
                 <i
                   :class="['fa-solid', isLoginSubmitting ? 'fa-spinner fa-spin' : 'fa-arrow-right']"
@@ -118,14 +129,28 @@
               </button>
             </div>
           </div>
+          <label v-if="rememberSupported" class="remember-password">
+            <input
+              type="checkbox"
+              :checked="rememberPassword"
+              :disabled="isLoginBusy || !rememberAvailable"
+              @change="changeRemember"
+            />
+            <span>记住密码</span>
+            <span v-if="!isRememberBusy && !rememberAvailable" class="remember-unavailable"
+              >（此设备暂不可用）</span
+            >
+          </label>
           <button
             v-if="appStore.loginStyle === 'console'"
             type="submit"
             class="console-submit"
-            :disabled="isLoginSubmitting"
+            :disabled="isLoginBusy"
           >
-            <span>{{ isLoginSubmitting ? '正在登录…' : '登录' }}</span
-            ><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            <span>{{ isLoginSubmitting ? '正在登录…' : '登录' }}</span><i
+              class="fa-solid fa-arrow-right"
+              aria-hidden="true"
+            ></i>
           </button>
         </form>
         <form
@@ -194,8 +219,10 @@
             class="console-submit"
             :disabled="isRegisterSubmitting || isRegisterConfirming"
           >
-            <span>{{ isRegisterSubmitting ? '正在创建…' : '创建管理员账户' }}</span
-            ><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            <span>{{ isRegisterSubmitting ? '正在创建…' : '创建管理员账户' }}</span><i
+              class="fa-solid fa-arrow-right"
+              aria-hidden="true"
+            ></i>
           </button>
         </form>
       </div>
@@ -248,6 +275,8 @@ import { APP_CONFIG } from '@/utils/constants';
 import { useAppStore } from '@/stores/app';
 import ServerSettings from '@/components/settings/ServerSettings.vue';
 import { shuffleArray } from '@/utils/helpers';
+import { getServerUrl } from '@/utils/server';
+import { useRememberedLogin } from '@/composables/useRememberedLogin';
 
 // 路由与状态库实例化
 const router = useRouter();
@@ -273,11 +302,24 @@ const CONTROL_CHAR_PATTERN = /[\u0000-\u001F\u007F]/u;
 
 // 响应式登录表单状态
 const authMode = ref(AUTH_MODE.LOGIN);
-const loginUsername = ref('');
-const loginPassword = ref('');
+const {
+  supported: rememberSupported,
+  available: rememberAvailable,
+  busy: isRememberBusy,
+  username: loginUsername,
+  password: loginPassword,
+  remember: rememberPassword,
+  restore: restoreRememberedLogin,
+  changeRemember,
+  persist: persistRememberedLogin
+} = useRememberedLogin();
 const loginErrorMsg = ref('');
 const showLoginPassword = ref(false);
 const isLoginSubmitting = ref(false);
+const isServerSaving = ref(false);
+const isLoginBusy = computed(
+  () => isLoginSubmitting.value || isRememberBusy.value || isServerSaving.value
+);
 
 // 响应式初始化注册表单状态
 const registerUsername = ref('');
@@ -464,7 +506,7 @@ function switchToLogin() {
  * @returns {Promise<void>}
  */
 async function handleLogin() {
-  if (isLoginSubmitting.value) return;
+  if (isLoginBusy.value) return;
 
   loginErrorMsg.value = '';
   const normalizedUsername = loginUsername.value.trim();
@@ -477,6 +519,7 @@ async function handleLogin() {
   }
 
   isLoginSubmitting.value = true;
+  const serverUrl = getServerUrl();
   try {
     const response = await authApi.login(normalizedUsername, loginPassword.value);
     const token = response.data?.token;
@@ -486,6 +529,13 @@ async function handleLogin() {
     if (!token) {
       throw new Error('登录响应缺少 Token');
     }
+
+    // 仅保存通过认证的密码；错误密码不能覆盖上一次成功保存的记录。
+    await persistRememberedLogin({
+      serverUrl,
+      username: normalizedUsername,
+      password: loginPassword.value
+    });
 
     // 更新全局鉴权状态
     authStore.setAuth(token, responseUsername, isDemoAccount);
@@ -735,7 +785,7 @@ onBeforeUnmount(() => {
 .auth-form-viewport {
   position: relative;
   width: 230px;
-  height: 3.375rem;
+  height: 5.25rem;
   overflow: hidden;
   display: flex;
   justify-content: center;
@@ -885,6 +935,30 @@ input.newpass::placeholder {
 
 .submit-btn {
   font-weight: bold;
+}
+
+.remember-password {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  text-shadow: 0 1px 4px #0009;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-password input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #3284c9;
+}
+
+.remember-unavailable {
+  font-size: 10px;
 }
 
 .login-tip-row {
@@ -1186,6 +1260,11 @@ input.newpass::placeholder {
   justify-content: space-between;
   padding: 0 15px;
   font-size: 12px;
+}
+.console-login .remember-password {
+  margin-top: 0;
+  color: #6d839e;
+  text-shadow: none;
 }
 .console-submit:hover {
   background: #2575b8;

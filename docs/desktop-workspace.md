@@ -12,6 +12,10 @@
 
 桌面配置在 `%APPDATA%/limange/settings.json`，浏览器状态由 Electron 用户目录保存。关闭窗口会退出程序；再次双击运行中的程序会唤回已有窗口。
 
+普通窗口停止拉伸满 5 秒后自动保存宽高，下次启动按该尺寸显示；再次拉伸会重新计时。最大化、最小化及全屏不会覆盖普通窗口尺寸，也不会在下次启动时自动最大化。若更换屏幕或缩放比例，恢复尺寸会限制在当前屏幕工作区内。
+
+桌面版的两种登录样式均提供「记住密码」，默认不勾选。勾选并成功登录后，账号密码使用 Electron `safeStorage` 调用系统加密保存（Windows 为 DPAPI），不将明文密码写入 localStorage。退出登录、登录过期或重启后返回登录页时会自动回填，仍需点击登录。取消勾选会立即删除保存记录；登录失败不会覆盖原有记录。只记住最近一次成功保存的账号，并绑定其服务器地址。Web 版继续使用浏览器自身的密码自动填充。
+
 ## 参考项目的实现方式与移植范围
 
 | PVE-VDI 的设计                           | limange 的实现                                                  |
@@ -62,6 +66,7 @@ npm run desktop:build
 npm test
 npm run test:ui
 npm run test:desktop
+node scripts/desktop-preferences-check.cjs
 node scripts/desktop-smoke.cjs --packaged
 npm run test:performance
 ```

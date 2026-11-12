@@ -1,13 +1,29 @@
-const { app, BrowserWindow, ipcMain, Menu, protocol, session, shell, dialog } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  protocol,
+  session,
+  shell,
+  dialog,
+  screen,
+  safeStorage
+} = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createProtocolHandler } = require('./protocol.cjs');
 const { normalizeServerUrl, isTrustedRenderer } = require('./security.cjs');
+const { createSettingsStore } = require('./settings.cjs');
+const { getWindowOptions, restoreWindowSize, trackWindowSize } = require('./window-state.cjs');
+const { createRememberedLogin } = require('./remembered-login.cjs');
 
 const { serverUrl: DEFAULT_SERVER_URL } = require('../shared/defaults.json');
+
 let mainWindow;
 let serverUrl = DEFAULT_SERVER_URL;
-let settingsFile;
+let settings;
+let readyToQuit = false;
 
 app.setName('limange');
 app.setAppUserModelId('com.limange.desktop');
@@ -44,20 +60,20 @@ function registerHandler(channel, handler) {
 
 async function saveServer(value) {
   const normalized = normalizeServerUrl(value);
-  const temporary = `${settingsFile}.tmp`;
-  await fs.writeFile(temporary, JSON.stringify({ serverUrl: normalized }, null, 2), 'utf8');
-  await fs.rename(temporary, settingsFile);
+  await settings.update({ serverUrl: normalized });
   serverUrl = normalized;
   return normalized;
 }
 
 function createWindow() {
+  const windowOptions = getWindowOptions(
+    settings.get('windowSize'),
+    screen.getPrimaryDisplay().workAreaSize
+  );
   mainWindow = new BrowserWindow({
     title: 'limange',
-    width: 1440,
-    height: 920,
-    minWidth: 900,
-    minHeight: 620,
+    ...windowOptions,
+    useContentSize: true,
     show: false,
     frame: false,
     backgroundColor: '#f5f7fb',
@@ -70,6 +86,15 @@ function createWindow() {
       spellcheck: false
     }
   });
+
+  restoreWindowSize(mainWindow, windowOptions);
+  trackWindowSize(
+    mainWindow,
+    (windowSize) => settings.update({ windowSize }),
+    () => {
+      console.error('无法保存窗口尺寸');
+    }
+  );
 
   mainWindow.once('ready-to-show', () => {
     if (!process.env.LIMANGE_TEST_HIDDEN) mainWindow.show();
@@ -108,11 +133,9 @@ if (!app.requestSingleInstanceLock()) {
     .then(async () => {
       Menu.setApplicationMenu(null);
       await fs.mkdir(app.getPath('userData'), { recursive: true });
-      settingsFile = path.join(app.getPath('userData'), 'settings.json');
+      settings = await createSettingsStore(path.join(app.getPath('userData'), 'settings.json'));
       try {
-        serverUrl = normalizeServerUrl(
-          JSON.parse(await fs.readFile(settingsFile, 'utf8')).serverUrl
-        );
+        serverUrl = normalizeServerUrl(settings.get('serverUrl'));
       } catch {
         /* 缺失或损坏的配置使用默认地址，登录页仍可修改。 */
       }
@@ -144,6 +167,14 @@ if (!app.requestSingleInstanceLock()) {
         gpu: app.getGPUFeatureStatus()
       }));
       registerHandler('settings:set-server', saveServer);
+      const rememberedLogin = createRememberedLogin({
+        settings,
+        safeStorage,
+        getServerUrl: () => serverUrl
+      });
+      registerHandler('login:get-remembered', () => rememberedLogin.get());
+      registerHandler('login:remember', (value) => rememberedLogin.save(value));
+      registerHandler('login:forget', () => rememberedLogin.clear());
       createWindow();
       app.on('activate', () => {
         if (!mainWindow) createWindow();
@@ -154,4 +185,13 @@ if (!app.requestSingleInstanceLock()) {
       app.quit();
     });
   app.on('window-all-closed', () => app.quit());
+  app.on('before-quit', (event) => {
+    if (!settings || readyToQuit) return;
+    event.preventDefault();
+    // 已满足五秒条件的写入必须落盘；尚在防抖中的拉伸不会在退出时提前记录。
+    void settings.flush().then(() => {
+      readyToQuit = true;
+      app.quit();
+    });
+  });
 }

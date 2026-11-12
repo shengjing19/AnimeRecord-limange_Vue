@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('limangeDesktop', {
   getServerUrl: () => ipcRenderer.invoke('settings:get-server'),
   getPerformanceInfo: () => ipcRenderer.invoke('performance:info'),
   setServerUrl: (value) => ipcRenderer.invoke('settings:set-server', value),
+  getRememberedLogin: () => ipcRenderer.invoke('login:get-remembered'),
+  rememberLogin: (value) => ipcRenderer.invoke('login:remember', value),
+  forgetLogin: () => ipcRenderer.invoke('login:forget'),
   onMaximized: (callback) => {
     const listener = (_event, value) => callback(Boolean(value));
     ipcRenderer.on('window:maximized', listener);
