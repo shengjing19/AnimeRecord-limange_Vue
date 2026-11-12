@@ -75,6 +75,24 @@ async function main() {
     await page.screenshot({ path: '.temp/qa/desktop-detail-maximized.png' });
     await page.getByRole('button', { name: '还原窗口', exact: true }).click();
     await page.getByRole('button', { name: '返回', exact: true }).click();
+    await page.getByRole('tab', { name: '数据统计', exact: false }).click();
+    await page.getByRole('button', { name: '打开时间线模式' }).click();
+    await page.waitForFunction(() => {
+      const image = document.querySelector('.timeline-anime-card.is-active img');
+      return image?.src.startsWith('blob:') && image.complete && image.naturalWidth > 0;
+    });
+    assert.ok((await page.locator('.timeline-anime-card').count()) <= 7);
+    await page.keyboard.press('ArrowRight');
+    assert.equal(
+      await page.locator('.timeline-anime-card.is-active').getAttribute('data-index'),
+      '1'
+    );
+    assert.equal(
+      await page.locator('.timeline-console-head strong').textContent(),
+      await page.locator('.timeline-anime-card.is-active .timeline-card-title').textContent()
+    );
+    await page.keyboard.press('Escape');
+    await page.locator('.timeline-mode-overlay').waitFor({ state: 'hidden' });
     await page.getByRole('tab', { name: '数据管理', exact: true }).click();
     await page.getByRole('button', { name: '全部记录', exact: true }).click();
     await page.locator('.title-cell').first().waitFor();

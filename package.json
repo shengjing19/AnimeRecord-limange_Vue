@@ -16,6 +16,7 @@
     "test:desktop": "node scripts/desktop-smoke.cjs",
     "desktop:prepare": "node scripts/ensure-electron.cjs",
     "test:performance": "node scripts/performance-check.cjs",
+    "test:timeline": "node scripts/timeline-performance.cjs",
     "test:scroll": "node scripts/scroll-profile.cjs",
     "test:covers": "node scripts/cover-pipeline-check.cjs"
   },

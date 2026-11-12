@@ -3,9 +3,16 @@
     <section
       ref="rootRef"
       class="timeline-mode-overlay"
+      :class="{ 'is-reduced-motion': reduceMotion }"
       tabindex="-1"
       aria-label="时间线模式"
       @keydown.esc.prevent="emitClose"
+      @keydown.left.prevent="stepAnime(-1)"
+      @keydown.right.prevent="stepAnime(1)"
+      @keydown.up.prevent="selectGroup(groupIndex - 1)"
+      @keydown.down.prevent="selectGroup(groupIndex + 1)"
+      @keydown.home.prevent="selectGroup(0)"
+      @keydown.end.prevent="selectGroup(groups.length - 1)"
     >
       <main class="timeline-scene">
         <button
@@ -38,17 +45,12 @@
             <strong>Anime TimeLine</strong>
           </header>
 
-          <aside
-            ref="timelinePanelRef"
-            class="timeline-panel"
-            aria-label="观看年月时间线"
-            @wheel="handleTimelineWheel"
-          >
+          <aside class="timeline-panel" aria-label="观看年月时间线" @wheel="handleTimelineWheel">
             <div class="timeline-tilt">
               <div class="timeline-axis" aria-hidden="true"></div>
               <div ref="timelineRef" class="timeline-list">
                 <button
-                  v-for="(group, index) in groups"
+                  v-for="{ group, index, offset } in visibleMonths"
                   :key="group.key"
                   type="button"
                   :class="[
@@ -61,6 +63,9 @@
                   ]"
                   :aria-current="index === groupIndex ? 'true' : 'false'"
                   :aria-label="group.label"
+                  :data-group-index="index"
+                  :style="{ '--time-offset': offset }"
+                  :tabindex="index === groupIndex ? 0 : -1"
                   @click="selectGroup(index)"
                 >
                   <span class="time-label">{{ group.label }}</span>
@@ -69,7 +74,7 @@
             </div>
           </aside>
 
-          <section class="timeline-showcase" aria-live="polite">
+          <section class="timeline-showcase">
             <div class="timeline-month-kicker">
               <span>{{ activeGroup?.label || '--' }}</span>
               <span>{{ activeGroup?.count || 0 }} 部</span>
@@ -78,7 +83,7 @@
             <div ref="cardStageRef" class="timeline-card-stage" @click="handleCardStageClick">
               <button
                 v-for="card in visibleCards"
-                :key="`${card.anime.id}-${card.index}`"
+                :key="card.index"
                 type="button"
                 :class="[
                   'timeline-anime-card',
@@ -88,15 +93,22 @@
                   }
                 ]"
                 :data-index="card.index"
-                :data-flow-index="getCardFlowIndex(card.index)"
+                :data-flow-index="card.offset"
+                :style="card.style"
                 :aria-label="`查看 ${card.anime.title}`"
               >
                 <img
-                  :src="card.anime.coverUrl"
+                  v-lazy-cover="{
+                    url: card.anime.coverUrl,
+                    width: coverWidth,
+                    eager: true,
+                    delay: Math.abs(card.offset) > 1 ? 180 : 0,
+                    priority: Math.abs(card.offset)
+                  }"
                   :alt="`${card.anime.title} 封面`"
-                  loading="lazy"
+                  width="300"
+                  height="450"
                   decoding="async"
-                  @error="handleCoverError"
                 />
                 <span class="timeline-card-copy">
                   <span class="timeline-card-title">{{ card.anime.title }}</span>
@@ -111,7 +123,12 @@
             <p class="timeline-interaction-hint">点击后方封面切换</p>
           </section>
 
-          <section class="timeline-info-console" aria-label="动漫简介">
+          <section
+            ref="infoConsoleRef"
+            class="timeline-info-console"
+            aria-label="动漫简介"
+            aria-live="polite"
+          >
             <div class="timeline-console-head">
               <strong data-detail>{{ displayAnime?.title || '加载中' }}</strong>
               <span data-detail>{{ displayBadge }}</span>
@@ -121,14 +138,14 @@
               <span data-detail>{{ displayEpisodes }}</span>
             </div>
             <div class="timeline-console-progress" aria-hidden="true">
-              <span ref="progressBarRef"></span>
+              <span :style="{ transform: `scaleX(${animeProgress})` }"></span>
             </div>
             <p data-detail class="timeline-console-description">
               {{ displayAnime?.description || '正在读取观看记录...' }}
             </p>
           </section>
 
-          <section class="timeline-stats" aria-label="当前动漫数据">
+          <section ref="statsRef" class="timeline-stats" aria-label="当前动漫数据">
             <article class="timeline-stat">
               <span>动漫名</span>
               <strong data-detail>{{ displayAnime?.title || '--' }}</strong>
@@ -157,194 +174,171 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { animate, createTimeline, cubicBezier, stagger } from 'animejs';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { animeApi } from '@/api/anime';
 import { getFullImageUrl } from '@/utils/constants';
+import { vLazyCover } from '@/utils/lazyCover';
+import {
+  getTimelineCards,
+  getTimelineCardStyle,
+  getTimelineMonths,
+  wrapTimelineIndex
+} from '@/utils/timelineLayout';
 import { useAppStore } from '@/stores/app';
 
 const emit = defineEmits(['close']);
 const appStore = useAppStore();
 
-const CARD_WHEEL_INTERVAL = 260;
-const VISIBLE_CARD_RADIUS = 3;
-const VISIBLE_CARD_LIMIT = VISIBLE_CARD_RADIUS * 2 + 1;
+const MONTH_WHEEL_INTERVAL = 180;
+const DETAIL_DURATION = 180;
 
 const rootRef = ref(null);
-const timelinePanelRef = ref(null);
 const timelineRef = ref(null);
 const cardStageRef = ref(null);
-const progressBarRef = ref(null);
-
-const loading = ref(false);
+const infoConsoleRef = ref(null);
+const statsRef = ref(null);
+const loading = ref(true);
 const errorMessage = ref('');
-const groups = ref([]);
+// 归档数据只整体替换，避免为历史作品创建深层响应式代理。
+const groups = shallowRef([]);
 const groupIndex = ref(0);
 const animeIndex = ref(0);
-const displayAnime = ref(null);
-const displayGroup = ref(null);
-const displayAnimePosition = ref({ index: 0, count: 0 });
+const viewportWidth = ref(window.innerWidth);
+const pixelRatio = ref(window.devicePixelRatio);
 const reduceMotion = ref(false);
-const hasLoaded = ref(false);
 
+const transientAnimations = new Set();
+const monthAnimations = new Set();
 let previousBodyOverflow = '';
-let resizeTimer = null;
 let timelineWheelAt = 0;
-
-const animations = {
-  shell: null,
-  timeline: null,
-  cardEnter: null,
-  cardMotion: [],
-  detail: null,
-  progress: null
-};
+let motionQuery;
+let disposed = false;
 
 const activeGroup = computed(() => groups.value[groupIndex.value] || null);
 const activeAnimes = computed(() => activeGroup.value?.animes || []);
 const activeAnime = computed(() => activeAnimes.value[animeIndex.value] || null);
-const visibleCards = computed(() => {
-  const animes = activeAnimes.value;
-  const total = animes.length;
-
-  if (total <= VISIBLE_CARD_LIMIT) {
-    return animes.map((anime, index) => ({ anime, index }));
-  }
-
-  const cards = [];
-  const usedIndexes = new Set();
-
-  for (let offset = -VISIBLE_CARD_RADIUS; offset <= VISIBLE_CARD_RADIUS; offset += 1) {
-    const index = wrapIndex(animeIndex.value + offset, total);
-    if (usedIndexes.has(index)) continue;
-
-    usedIndexes.add(index);
-    cards.push({
-      anime: animes[index],
-      index
-    });
-  }
-
-  return cards;
+const visibleMonths = computed(() => getTimelineMonths(groups.value, groupIndex.value));
+// 同一槽位跨月复用按钮和图层，图片指令负责取消旧请求并释放缓存引用。
+const visibleCards = computed(() =>
+  getTimelineCards(activeAnimes.value, animeIndex.value).map((card) => ({
+    ...card,
+    style: getTimelineCardStyle(card.offset, viewportWidth.value)
+  }))
+);
+const coverWidth = computed(() => {
+  if (viewportWidth.value < 980) return pixelRatio.value > 1.5 ? 512 : 384;
+  return pixelRatio.value > 1.5 ? 768 : 512;
 });
+const animeProgress = computed(() =>
+  activeAnimes.value.length ? (animeIndex.value + 1) / activeAnimes.value.length : 0
+);
 
+const displayAnime = activeAnime;
 const displayBadge = computed(() => {
-  if (!displayAnime.value) return 'INFO';
-  if (displayAnime.value.isFavorite) return 'FAVORITE';
-  if (displayAnime.value.isWatching) return 'WATCHING';
-  return 'INFO';
+  if (activeAnime.value?.isFavorite) return 'FAVORITE';
+  return activeAnime.value?.isWatching ? 'WATCHING' : 'INFO';
 });
-
+const displayDateOnly = computed(() => formatDate(activeAnime.value?.finishDate));
 const displayFinishDate = computed(() =>
-  displayAnime.value ? `看完 ${formatDate(displayAnime.value.finishDate)}` : '--'
+  activeAnime.value ? `看完 ${displayDateOnly.value}` : '--'
 );
-
-const displayDateOnly = computed(() =>
-  displayAnime.value ? formatDate(displayAnime.value.finishDate) : '--'
-);
-
-const displayEpisodes = computed(() =>
-  displayAnime.value ? `${displayAnime.value.totalEpisodes || '--'} 集` : '--'
-);
-
-const displayStatEpisodes = computed(() =>
-  displayAnime.value?.totalEpisodes ? `${displayAnime.value.totalEpisodes} 集` : '--'
-);
-
+const displayEpisodes = computed(() => `${activeAnime.value?.totalEpisodes || '--'} 集`);
+const displayStatEpisodes = displayEpisodes;
 const displayMonthPosition = computed(() => {
-  const count = displayAnimePosition.value.count || displayGroup.value?.count || 0;
-  if (!count) return '--';
-  return `${displayAnimePosition.value.index + 1}/${count} 部`;
+  const count = activeGroup.value?.count || 0;
+  return count ? `${animeIndex.value + 1}/${count} 部` : '--';
 });
+
+watch(() => appStore.reduceMotion, updateClientFlags);
+watch(
+  loading,
+  (pending) => {
+    // 重试按钮随加载分支卸载后会失去焦点，恢复到场景才能继续响应 Esc 和方向键。
+    if (!pending && !disposed && !rootRef.value?.contains(document.activeElement)) {
+      rootRef.value?.focus({ preventScroll: true });
+    }
+  },
+  { flush: 'post' }
+);
 
 onMounted(() => {
   previousBodyOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
+  motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  motionQuery.addEventListener('change', updateClientFlags);
   updateClientFlags();
-  window.addEventListener('resize', handleResize);
-
-  nextTick(() => {
-    rootRef.value?.focus({ preventScroll: true });
-  });
-
-  loadTimelineData();
+  window.addEventListener('resize', handleResize, { passive: true });
+  rootRef.value?.focus({ preventScroll: true });
+  void loadTimelineData();
 });
 
 onBeforeUnmount(() => {
-  cleanupAnimations();
+  disposed = true;
+  stopTransientAnimations();
+  stopMonthAnimations();
+  motionQuery?.removeEventListener('change', updateClientFlags);
   window.removeEventListener('resize', handleResize);
-  clearTimeout(resizeTimer);
   document.body.style.overflow = previousBodyOverflow;
 });
 
 function emitClose() {
-  cleanupAnimations();
+  disposed = true;
+  stopTransientAnimations();
+  stopMonthAnimations();
   emit('close');
 }
 
 function updateClientFlags() {
-  reduceMotion.value =
-    appStore.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  reduceMotion.value = appStore.reduceMotion || Boolean(motionQuery?.matches);
+  if (reduceMotion.value) {
+    stopTransientAnimations();
+    stopMonthAnimations();
+  }
 }
 
 function handleResize() {
-  updateClientFlags();
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    if (!hasLoaded.value) return;
-    stopCardEnter();
-    layoutCards(false);
-    centerActiveTimeline(false);
-  }, 160);
-}
-
-async function reloadTimeline() {
-  hasLoaded.value = false;
-  groups.value = [];
-  groupIndex.value = 0;
-  animeIndex.value = 0;
-  displayAnime.value = null;
-  displayGroup.value = null;
-  await loadTimelineData();
+  stopMonthAnimations();
+  viewportWidth.value = window.innerWidth;
+  pixelRatio.value = window.devicePixelRatio;
 }
 
 async function loadTimelineData() {
-  if (loading.value) return;
-
   loading.value = true;
   errorMessage.value = '';
 
   try {
     const response = await animeApi.getMainList('finished');
-    const normalizedGroups = normalizeGroups(response?.data);
+    if (disposed) return;
 
-    if (!normalizedGroups.length) {
-      throw new Error('暂无已看完动漫数据');
-    }
+    const normalized = normalizeGroups(response?.data);
+    if (!normalized.length) throw new Error('暂无已看完动漫数据');
 
-    groups.value = normalizedGroups;
+    groups.value = normalized;
     groupIndex.value = 0;
     animeIndex.value = 0;
-    hasLoaded.value = true;
     loading.value = false;
-
     await nextTick();
-    centerActiveTimeline(false);
-    updateAnimeDetails(false);
+    if (disposed || reduceMotion.value) return;
 
-    if (reduceMotion.value) {
-      await layoutCards(false);
-    } else {
-      await nextTick();
-      animateShell({ includeCards: true });
-    }
+    // 入场只处理有限的面板，卡片位置交给浏览器的 transform 过渡。
+    animatePanels(
+      [
+        rootRef.value?.querySelector('.timeline-brand'),
+        rootRef.value?.querySelector('.timeline-panel'),
+        infoConsoleRef.value,
+        statsRef.value
+      ],
+      320
+    );
   } catch (error) {
-    errorMessage.value = extractErrorMessage(error);
+    if (!disposed) errorMessage.value = extractErrorMessage(error);
   } finally {
-    if (loading.value) {
-      loading.value = false;
-    }
+    if (!disposed) loading.value = false;
   }
+}
+
+function reloadTimeline() {
+  if (!loading.value) void loadTimelineData();
 }
 
 function normalizeGroups(data) {
@@ -352,33 +346,23 @@ function normalizeGroups(data) {
 
   return sourceGroups
     .map((group, groupPosition) => {
-      const animes = (Array.isArray(group?.animes) ? group.animes : [])
-        .map((anime, animePosition) => {
-          const title = cleanInline(anime?.title) || '未命名作品';
-          const coverImage = cleanInline(anime?.coverImage);
-
-          return {
-            id: anime?.id ?? `${groupPosition}-${animePosition}`,
-            title,
-            coverImage,
-            coverUrl: getFullImageUrl(coverImage),
-            totalEpisodes: normalizeNumber(anime?.totalEpisodes),
-            finishDate: cleanInline(anime?.finishDate),
-            isFavorite: Boolean(anime?.isFavorite),
-            isWatching: Boolean(anime?.isWatching),
-            description: cleanBlock(anime?.description) || '暂无简介'
-          };
+      const animes = (Array.isArray(group?.animes) ? group.animes : []).map(
+        (anime, animePosition) => ({
+          id: anime?.id ?? `${groupPosition}-${animePosition}`,
+          title: cleanInline(anime?.title) || '未命名作品',
+          coverUrl: getFullImageUrl(cleanInline(anime?.coverImage)),
+          totalEpisodes: normalizeNumber(anime?.totalEpisodes),
+          finishDate: cleanInline(anime?.finishDate),
+          isFavorite: Boolean(anime?.isFavorite),
+          isWatching: Boolean(anime?.isWatching),
+          description: cleanBlock(anime?.description) || '暂无简介'
         })
-        .filter((anime) => anime.title);
-
-      const year = cleanInline(group?.year);
-      const month = cleanInline(group?.month);
-      const label = `${year}${month}` || `分组 ${groupPosition + 1}`;
+      );
+      const label =
+        `${cleanInline(group?.year)}${cleanInline(group?.month)}` || `分组 ${groupPosition + 1}`;
 
       return {
         key: `${label}-${groupPosition}`,
-        year,
-        month,
         label,
         count: normalizeNumber(group?.count) || animes.length,
         animes
@@ -387,10 +371,122 @@ function normalizeGroups(data) {
     .filter((group) => group.animes.length);
 }
 
+function selectGroup(index) {
+  if (disposed || !groups.value.length) return;
+  const nextIndex = Math.min(Math.max(index, 0), groups.value.length - 1);
+  if (nextIndex === groupIndex.value) return;
+
+  animateMonthShift(nextIndex - groupIndex.value);
+  groupIndex.value = nextIndex;
+  animeIndex.value = 0;
+  animateDetails();
+}
+
+function selectAnime(index) {
+  if (disposed || index < 0 || index >= activeAnimes.value.length || index === animeIndex.value)
+    return;
+  animeIndex.value = index;
+  animateDetails();
+}
+
+function stepAnime(direction) {
+  selectAnime(wrapTimelineIndex(animeIndex.value + direction, activeAnimes.value.length));
+}
+
+function handleTimelineWheel(event) {
+  const delta = viewportWidth.value < 980 ? event.deltaX || event.deltaY : event.deltaY;
+  if (!delta || groups.value.length < 2) return;
+  event.preventDefault();
+
+  const now = performance.now();
+  if (now - timelineWheelAt < MONTH_WHEEL_INTERVAL) return;
+  const nextIndex = Math.min(
+    Math.max(groupIndex.value + Math.sign(delta), 0),
+    groups.value.length - 1
+  );
+  if (nextIndex === groupIndex.value) return;
+
+  timelineWheelAt = now;
+  selectGroup(nextIndex);
+}
+
+function handleCardStageClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+  const card = target?.closest('.timeline-anime-card');
+  if (!card || !cardStageRef.value?.contains(card)) return;
+
+  const index = Number(card.dataset.index);
+  if (Number.isInteger(index) && index !== animeIndex.value) {
+    selectAnime(index);
+    return;
+  }
+
+  // 前景封面覆盖了侧卡的一部分，在边缘点击仍允许切换相邻作品。
+  if (!event.detail || activeAnimes.value.length < 2) return;
+  const rect = card.getBoundingClientRect();
+  const offset = event.clientX - rect.left - rect.width / 2;
+  if (Math.abs(offset) > rect.width * 0.34) stepAnime(Math.sign(offset));
+}
+
+function animateDetails() {
+  stopTransientAnimations();
+  if (!reduceMotion.value) animatePanels([infoConsoleRef.value, statsRef.value], DETAIL_DURATION);
+}
+
+/** 将槽位变化抵消在整条轨道上；快速输入时叠加剩余位移，不逐帧读写月份节点。 */
+function animateMonthShift(delta) {
+  const timeline = timelineRef.value;
+  if (!timeline || reduceMotion.value || Math.abs(delta) > 6) {
+    stopMonthAnimations();
+    return;
+  }
+
+  const horizontal = viewportWidth.value < 980;
+  const distance = delta * (horizontal ? 9 : 3.5);
+  const transform = horizontal ? `translateX(${distance}rem)` : `translateY(${distance}rem)`;
+  const animation = timeline.animate(
+    [{ transform }, { transform: horizontal ? 'translateX(0rem)' : 'translateY(0rem)' }],
+    { duration: 360, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', composite: 'add' }
+  );
+  monthAnimations.add(animation);
+  animation.onfinish = () => {
+    monthAnimations.delete(animation);
+    animation.cancel();
+  };
+}
+
+function stopMonthAnimations() {
+  for (const animation of monthAnimations) animation.cancel();
+  monthAnimations.clear();
+}
+
+/** WAAPI 在合成线程插值；取消只释放效果，不回写旧文本或等待上一段动画。 */
+function animatePanels(elements, duration) {
+  for (const element of elements) {
+    if (!element || disposed) continue;
+    const animation = element.animate(
+      [
+        { opacity: 0.65, translate: '0 4px' },
+        { opacity: 1, translate: '0 0' }
+      ],
+      { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+    transientAnimations.add(animation);
+    animation.onfinish = () => {
+      transientAnimations.delete(animation);
+      animation.cancel();
+    };
+  }
+}
+
+function stopTransientAnimations() {
+  for (const animation of transientAnimations) animation.cancel();
+  transientAnimations.clear();
+}
+
 function normalizeNumber(value) {
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue) || numberValue < 0) return 0;
-  return Math.trunc(numberValue);
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
 }
 
 function cleanInline(value) {
@@ -409,649 +505,7 @@ function cleanBlock(value) {
 function extractErrorMessage(error) {
   const data = error?.response?.data;
   if (typeof data === 'string') return data;
-  if (typeof data?.message === 'string') return data.message;
-  return error?.message || '数据加载失败，请检查后端服务';
-}
-
-async function selectGroup(index, options = {}) {
-  const nextIndex = clamp(index, 0, groups.value.length - 1);
-  if (!options.force && nextIndex === groupIndex.value) return;
-
-  cancelAnimation('shell');
-  stopCardEnter();
-  groupIndex.value = nextIndex;
-  animeIndex.value = 0;
-
-  await nextTick();
-  centerActiveTimeline(options.animateCards !== false);
-  await layoutCards(options.animateCards !== false);
-  updateAnimeDetails(options.animateDetails !== false);
-}
-
-async function selectAnime(index) {
-  const nextIndex = clamp(index, 0, activeAnimes.value.length - 1);
-  if (nextIndex === animeIndex.value) return;
-
-  cancelAnimation('shell');
-  stopCardEnter();
-  animeIndex.value = nextIndex;
-
-  await nextTick();
-  await layoutCards(true);
-  updateAnimeDetails(true);
-}
-
-function centerActiveTimeline(shouldAnimate = true) {
-  const panel = timelinePanelRef.value;
-  const timeline = timelineRef.value;
-  const activeNode = timeline?.querySelector('.time-node.is-active');
-
-  cancelAnimation('timeline');
-
-  if (!panel || !timeline || !activeNode || window.innerWidth < 980) {
-    if (timeline) timeline.style.transform = '';
-    return;
-  }
-
-  const activeCenter = activeNode.offsetTop + activeNode.offsetHeight / 2;
-  const targetCenter = panel.clientHeight / 2;
-  const offset = Math.round(targetCenter - activeCenter);
-
-  if (!shouldAnimate || reduceMotion.value) {
-    timeline.style.transform = `translateY(${offset}px)`;
-    return;
-  }
-
-  animations.timeline = animate(timeline, {
-    translateY: `${offset}px`,
-    duration: 800,
-    ease: cubicBezier(0.2, 0.8, 0.2, 1),
-    composition: 'replace'
-  });
-}
-
-function handleTimelineWheel(event) {
-  if (window.innerWidth < 980) return;
-
-  event.preventDefault();
-
-  const now = Date.now();
-  if (now - timelineWheelAt < CARD_WHEEL_INTERVAL) return;
-
-  const direction = event.deltaY > 0 ? 1 : -1;
-  const nextIndex = clamp(groupIndex.value + direction, 0, groups.value.length - 1);
-
-  if (nextIndex !== groupIndex.value) {
-    timelineWheelAt = now;
-    selectGroup(nextIndex);
-  }
-}
-
-async function layoutCards(shouldAnimate) {
-  await nextTick();
-
-  const cards = getCardElements();
-  if (!cards.length) return;
-
-  syncCardZIndex();
-
-  if (!shouldAnimate || reduceMotion.value) {
-    cancelCardMotion();
-    cards.forEach((card) => {
-      applySlot(card, getCardSlot(getElementCardIndex(card)));
-      card.style.pointerEvents = 'auto';
-      card.style.willChange = 'auto';
-    });
-    return;
-  }
-
-  cancelCardMotion();
-
-  cards.forEach((card) => {
-    const index = getElementCardIndex(card);
-    const slot = getCardSlot(index);
-    card.style.visibility = 'visible';
-    card.style.pointerEvents = 'auto';
-    card.style.willChange = 'transform, opacity';
-
-    const animation = animate(card, {
-      perspective: `${slot.transformPerspective}px`,
-      translateX: `${slot.x}px`,
-      translateY: `${slot.y}px`,
-      translateZ: `${slot.z}px`,
-      rotateY: `${slot.rotationY}deg`,
-      rotate: `${slot.rotation}deg`,
-      scale: slot.scale,
-      opacity: slot.autoAlpha,
-      duration: 560,
-      ease: cubicBezier(0.64, 0, 0.25, 1),
-      composition: 'replace',
-      onUpdate: (self) => {
-        const progress = self.progress > 1 ? self.progress / 100 : self.progress;
-        if (progress > 0.47 && card.dataset.zSwapped !== '1') {
-          card.style.zIndex = String(slot.zIndex);
-          card.dataset.zSwapped = '1';
-        }
-      },
-      onComplete: () => {
-        finalizeSlot(card, slot);
-        card.style.willChange = 'auto';
-        delete card.dataset.zSwapped;
-      }
-    });
-
-    animations.cardMotion.push(animation);
-  });
-}
-
-async function playCardEnter(options = {}) {
-  await nextTick();
-
-  const cards = getCardElements();
-  if (!cards.length) return;
-
-  stopCardEnter();
-
-  if (reduceMotion.value) {
-    await layoutCards(false);
-    return;
-  }
-
-  prepareCardEnter(cards);
-  animations.cardEnter = animate(
-    cards,
-    getCardEnterAnimation(options, () => {
-      finalizeCardEnter(cards);
-      animations.cardEnter = null;
-    })
-  );
-}
-
-function stopCardEnter() {
-  cancelAnimation('cardEnter');
-  animations.cardEnter = null;
-
-  getCardElements().forEach((card) => {
-    card.style.pointerEvents = 'auto';
-    card.style.willChange = 'auto';
-  });
-}
-
-function prepareCardEnter(cards) {
-  const narrow = window.innerWidth < 560;
-  const stackY = narrow ? 38 : 50;
-
-  cardStageRef.value?.style.setProperty('perspective', '1200px');
-  syncCardZIndex();
-
-  cards.forEach((card) => {
-    const slot = getCardSlot(getElementCardIndex(card));
-    applySlot(card, {
-      ...slot,
-      x: 0,
-      y: stackY,
-      z: 0,
-      rotationY: 0,
-      rotation: 0,
-      autoAlpha: 0
-    });
-    card.style.visibility = 'visible';
-    card.style.pointerEvents = 'none';
-    card.style.willChange = 'transform, opacity';
-  });
-}
-
-function getCardEnterAnimation(options = {}, onComplete) {
-  return {
-    perspective: (target) => `${getCardSlot(getElementCardIndex(target)).transformPerspective}px`,
-    translateX: (target) => `${getCardSlot(getElementCardIndex(target)).x}px`,
-    translateY: (target) => `${getCardSlot(getElementCardIndex(target)).y}px`,
-    translateZ: (target) => `${getCardSlot(getElementCardIndex(target)).z}px`,
-    rotateY: (target) => `${getCardSlot(getElementCardIndex(target)).rotationY}deg`,
-    rotate: (target) => `${getCardSlot(getElementCardIndex(target)).rotation}deg`,
-    scale: (target) => getCardSlot(getElementCardIndex(target)).scale,
-    opacity: (target) => getCardSlot(getElementCardIndex(target)).autoAlpha,
-    duration: options.duration || (activeAnimes.value.length > 10 ? 760 : 920),
-    delay: (target) =>
-      (options.delay || 0) +
-      Math.abs(getCardFlowIndex(getElementCardIndex(target))) * (options.stagger || 34),
-    ease: 'outExpo',
-    composition: 'replace',
-    onUpdate: syncCardZIndex,
-    onComplete
-  };
-}
-
-function finalizeCardEnter(cards) {
-  cards.forEach((card) => {
-    finalizeSlot(card, getCardSlot(getElementCardIndex(card)));
-    card.style.pointerEvents = 'auto';
-    card.style.willChange = 'auto';
-  });
-}
-
-function getCardElements() {
-  return Array.from(cardStageRef.value?.querySelectorAll('.timeline-anime-card') || []);
-}
-
-function getElementCardIndex(card) {
-  const index = Number(card?.dataset?.index);
-  return Number.isInteger(index) ? index : 0;
-}
-
-function getCardSlot(index) {
-  const total = activeAnimes.value.length;
-  const offset = getSignedOffset(index, animeIndex.value, total);
-  const abs = Math.abs(offset);
-  const side = Math.sign(offset);
-  const tier = Math.min(abs, 6);
-  const narrow = window.innerWidth < 560;
-  const tablet = window.innerWidth < 980;
-
-  if (offset === 0) {
-    return {
-      x: 0,
-      y: tablet ? -6 : -22,
-      z: 0,
-      scale: 1,
-      transformPerspective: 900,
-      rotationY: 0,
-      rotation: 0,
-      autoAlpha: 1,
-      zIndex: 1000
-    };
-  }
-
-  const base = narrow ? 130 : tablet ? 178 : 220;
-  const step = narrow ? 52 : tablet ? 72 : 92;
-  const depth = narrow ? 70 : tablet ? 105 : 150;
-  const scaleStep = narrow ? 0.19 : 0.22;
-  const transformPerspective = tier === 1 ? 900 : narrow ? 2800 : tablet ? 5200 : 9000;
-
-  return {
-    x: side * (base + (tier - 1) * step),
-    y: (tier - 1) * (narrow ? 12 : 16) + (narrow ? 16 : 18),
-    z: -tier * depth,
-    scale: Math.max(narrow ? 0.34 : 0.28, 1 - tier * scaleStep),
-    transformPerspective,
-    rotationY: side * (-30 - tier * 10),
-    rotation: side * -2,
-    autoAlpha: Math.max(0, 0.86 - tier * 0.18),
-    zIndex: 1000 - tier * 30
-  };
-}
-
-function applySlot(card, slot) {
-  card.style.transform = `perspective(${slot.transformPerspective}px) translate3d(${slot.x}px, ${slot.y}px, ${slot.z}px) rotateY(${slot.rotationY}deg) rotate(${slot.rotation}deg) scale(${slot.scale})`;
-  card.style.opacity = String(slot.autoAlpha);
-  finalizeSlot(card, slot);
-}
-
-function finalizeSlot(card, slot) {
-  card.style.opacity = String(slot.autoAlpha);
-  card.style.visibility = slot.autoAlpha <= 0 ? 'hidden' : 'visible';
-  card.style.zIndex = String(slot.zIndex);
-}
-
-function syncCardZIndex() {
-  getCardElements().forEach((card) => {
-    card.style.zIndex = String(getCardSlot(getElementCardIndex(card)).zIndex);
-  });
-}
-
-function getSignedOffset(index, activeIndex, total) {
-  if (!total) return 0;
-
-  let offset = index - activeIndex;
-  const half = total / 2;
-
-  if (offset > half) offset -= total;
-  if (offset < -half) offset += total;
-
-  return offset;
-}
-
-function getCardFlowIndex(index) {
-  return getSignedOffset(index, animeIndex.value, activeAnimes.value.length);
-}
-
-function handleCardStageClick(event) {
-  const target = event.target instanceof Element ? event.target : null;
-  const clickedCard = target?.closest('.timeline-anime-card');
-
-  if (!clickedCard || !cardStageRef.value?.contains(clickedCard)) return;
-
-  const clickedIndex = Number(clickedCard.dataset.index);
-  if (Number.isInteger(clickedIndex) && clickedIndex !== animeIndex.value) {
-    selectAnime(clickedIndex);
-    return;
-  }
-
-  const activeCard = getCardElements().find(
-    (card) => getElementCardIndex(card) === animeIndex.value
-  );
-  const stageRect = cardStageRef.value.getBoundingClientRect();
-  const clickX = event.clientX - (stageRect.left + stageRect.width / 2);
-  const deadZone = (activeCard?.getBoundingClientRect().width || 300) * 0.34;
-
-  if (Math.abs(clickX) <= deadZone) return;
-
-  const sideIndex = getSideCardIndex(Math.sign(clickX));
-  if (sideIndex !== null) {
-    selectAnime(sideIndex);
-  }
-}
-
-function getSideCardIndex(direction) {
-  const total = activeAnimes.value.length;
-  if (!total || !direction) return null;
-
-  for (let index = 0; index < total; index += 1) {
-    if (getSignedOffset(index, animeIndex.value, total) === direction) {
-      return index;
-    }
-  }
-
-  return null;
-}
-
-function handleCoverError(event) {
-  const target = event.target instanceof Element ? event.target : null;
-  target?.closest('.timeline-anime-card')?.classList.add('is-missing-cover');
-}
-
-function updateAnimeDetails(shouldAnimate) {
-  const group = activeGroup.value;
-  const anime = activeAnime.value;
-  if (!group || !anime) return;
-
-  const apply = () => {
-    displayAnime.value = anime;
-    displayGroup.value = group;
-    displayAnimePosition.value = {
-      index: animeIndex.value,
-      count: group.count || group.animes.length
-    };
-
-    nextTick(() => {
-      animateProgress(((animeIndex.value + 1) / group.animes.length) * 100, shouldAnimate);
-    });
-  };
-
-  const targets = getDetailTargets();
-
-  if (!shouldAnimate || reduceMotion.value || !targets.length || !displayAnime.value) {
-    cancelAnimation('detail');
-    apply();
-    return;
-  }
-
-  cancelAnimation('detail');
-
-  animations.detail = animate(targets, {
-    opacity: 0,
-    translateY: '-8px',
-    duration: 140,
-    ease: 'outQuad',
-    composition: 'replace',
-    onComplete: () => {
-      apply();
-      nextTick(() => {
-        const nextTargets = getDetailTargets();
-        animations.detail = animate(nextTargets, {
-          opacity: [0, 1],
-          translateY: ['8px', '0px'],
-          duration: 300,
-          delay: stagger(18),
-          ease: 'outCubic',
-          composition: 'replace'
-        });
-      });
-    }
-  });
-}
-
-function animateProgress(progress, shouldAnimate) {
-  const progressBar = progressBarRef.value;
-  if (!progressBar) return;
-
-  cancelAnimation('progress');
-
-  const width = `${clamp(progress, 0, 100)}%`;
-
-  if (!shouldAnimate || reduceMotion.value) {
-    progressBar.style.width = width;
-    return;
-  }
-
-  animations.progress = animate(progressBar, {
-    width,
-    duration: 420,
-    ease: 'outCubic',
-    composition: 'replace'
-  });
-}
-
-function getDetailTargets() {
-  return Array.from(rootRef.value?.querySelectorAll('[data-detail]') || []);
-}
-
-function animateShell(options = {}) {
-  cancelAnimation('shell');
-
-  const root = rootRef.value;
-  if (!root) return;
-
-  if (reduceMotion.value) {
-    return;
-  }
-
-  const isDesktop = window.innerWidth >= 980;
-  const ambientGrid = root.querySelector('.timeline-ambient-grid');
-  const axis = root.querySelector('.timeline-axis');
-  const brandParts = Array.from(
-    root.querySelectorAll('.timeline-brand strong, .timeline-brand span')
-  );
-  const timeNodes = Array.from(root.querySelectorAll('.time-node'));
-  const statItems = Array.from(root.querySelectorAll('.timeline-stat'));
-  const statLines = Array.from(root.querySelectorAll('.timeline-stat-line'));
-  const monthKicker = root.querySelector('.timeline-month-kicker');
-  const infoConsole = root.querySelector('.timeline-info-console');
-  const infoText = Array.from(
-    root.querySelectorAll(
-      '.timeline-console-head strong, .timeline-console-head span, .timeline-console-meta span, .timeline-console-description'
-    )
-  );
-  const enterCards = options.includeCards ? getCardElements() : [];
-  const shouldAnimateCards = enterCards.length > 0;
-
-  if (shouldAnimateCards) {
-    stopCardEnter();
-    prepareCardEnter(enterCards);
-  }
-
-  if (axis) {
-    axis.style.transformOrigin = isDesktop ? 'top center' : 'left center';
-    axis.style.transform = isDesktop ? 'scaleY(0)' : 'scaleX(0)';
-  }
-
-  statLines.forEach((line) => {
-    line.style.transform = 'scaleX(0)';
-  });
-
-  const timeline = createTimeline({
-    defaults: { ease: 'outCubic' },
-    onComplete: () => {
-      if (shouldAnimateCards) {
-        finalizeCardEnter(enterCards);
-      }
-      syncCardZIndex();
-      animations.shell = null;
-    }
-  });
-
-  animations.shell = timeline;
-
-  if (ambientGrid) {
-    timeline.add(ambientGrid, { opacity: [0, 0.08], scale: [1.025, 1], duration: 900 }, 0);
-  }
-
-  if (brandParts.length) {
-    timeline.add(
-      brandParts,
-      {
-        translateY: ['-18px', '0px'],
-        opacity: [0, 1],
-        duration: 420,
-        delay: stagger(60)
-      },
-      90
-    );
-  }
-
-  if (axis) {
-    timeline.add(
-      axis,
-      isDesktop ? { scaleY: [0, 1], duration: 820 } : { scaleX: [0, 1], duration: 820 },
-      120
-    );
-  }
-
-  if (timeNodes.length) {
-    timeline.add(
-      timeNodes,
-      {
-        translateX: ['-24px', '0px'],
-        opacity: [0, 1],
-        duration: 480,
-        delay: stagger(42)
-      },
-      190
-    );
-  }
-
-  if (shouldAnimateCards) {
-    timeline.add(
-      enterCards,
-      getCardEnterAnimation(
-        {
-          duration: activeAnimes.value.length > 10 ? 760 : 920,
-          stagger: 32
-        },
-        () => {
-          finalizeCardEnter(enterCards);
-        }
-      ),
-      300
-    );
-  }
-
-  if (monthKicker) {
-    timeline.add(
-      monthKicker,
-      {
-        translateY: ['20px', '0px'],
-        opacity: [0, 1],
-        duration: 440
-      },
-      330
-    );
-  }
-
-  if (infoConsole) {
-    timeline.add(
-      infoConsole,
-      {
-        opacity: [0, 1],
-        translateX: ['36px', '0px'],
-        clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'],
-        duration: 620,
-        ease: 'outQuart'
-      },
-      500
-    );
-  }
-
-  if (progressBarRef.value) {
-    timeline.add(
-      progressBarRef.value,
-      {
-        scaleX: [0, 1],
-        duration: 560
-      },
-      620
-    );
-  }
-
-  if (infoText.length) {
-    timeline.add(
-      infoText,
-      {
-        translateY: ['12px', '0px'],
-        opacity: [0, 1],
-        duration: 360,
-        delay: stagger(38),
-        ease: 'outQuad'
-      },
-      650
-    );
-  }
-
-  if (statItems.length) {
-    timeline
-      .add(
-        statItems,
-        {
-          translateY: ['18px', '0px'],
-          opacity: [0, 1],
-          duration: 430,
-          delay: stagger(70)
-        },
-        720
-      )
-      .add(
-        statLines,
-        {
-          scaleX: [0, 1],
-          duration: 360,
-          delay: stagger(70),
-          ease: 'outQuad'
-        },
-        800
-      );
-  }
-}
-
-function cleanupAnimations() {
-  cancelAnimation('shell');
-  cancelAnimation('timeline');
-  cancelAnimation('detail');
-  cancelAnimation('progress');
-  stopCardEnter();
-  cancelCardMotion();
-}
-
-function cancelCardMotion() {
-  animations.cardMotion.forEach((animation) => {
-    animation?.cancel?.();
-  });
-  animations.cardMotion = [];
-}
-
-function cancelAnimation(key) {
-  const animation = animations[key];
-  if (!animation) return;
-  animation.cancel?.();
-  animations[key] = null;
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function wrapIndex(index, total) {
-  if (!total) return 0;
-  return ((index % total) + total) % total;
+  return data?.message || error?.message || '数据加载失败，请检查后端服务';
 }
 
 function formatDate(value) {
@@ -1077,7 +531,7 @@ function formatDate(value) {
 }
 
 .timeline-scene {
-  --panel: rgba(34, 36, 35, 0.76);
+  --panel: rgba(28, 31, 30, 0.96);
   --panel-border: rgba(255, 255, 255, 0.09);
   --text: #f3f8f6;
   --muted: rgba(226, 236, 233, 0.48);
@@ -1138,7 +592,6 @@ function formatDate(value) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(16px);
   transition:
     transform 0.2s ease,
     background 0.2s ease,
@@ -1218,10 +671,10 @@ function formatDate(value) {
   top: 40vh;
   left: 80px;
   z-index: 40;
-  width: 800px;
+  width: 300px;
   height: 60vh;
   overflow: hidden;
-  pointer-events: none;
+  pointer-events: auto;
   user-select: none;
   transform: translateY(-50%);
   mask-image: linear-gradient(to bottom, transparent, #000 7%, #000 93%, transparent);
@@ -1255,22 +708,23 @@ function formatDate(value) {
 
 .timeline-list {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   padding: 0;
   overflow: visible;
   transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .time-node {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 0;
   width: max-content;
-  max-width: 720px;
-  margin: 0;
-  padding: 14px 6px 14px 40px;
+  max-width: 280px;
+  height: 56px;
+  margin: -28px 0 0;
+  padding: 0 6px 0 40px;
   border: 0;
   border-radius: 0;
   color: rgba(255, 255, 255, 0.62);
@@ -1280,6 +734,8 @@ function formatDate(value) {
   pointer-events: auto;
   transform-origin: left center;
   letter-spacing: 0;
+  transform: translate3d(0, calc(var(--time-offset) * 3.5rem), 0);
+  transition: opacity 220ms ease;
 }
 
 .time-node::before {
@@ -1287,17 +743,16 @@ function formatDate(value) {
   position: absolute;
   left: 8px;
   top: 50%;
-  width: 3px;
-  height: 3px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--cyan-strong);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transform: translate(-50%, -50%);
+  background: var(--cyan-strong);
+  opacity: 0.4;
+  transform: translate(-50%, -50%) scale(0.16);
   transition:
-    box-shadow 500ms ease,
-    background 500ms ease,
-    width 500ms ease,
-    height 500ms ease,
-    border 500ms ease;
+    transform 280ms ease,
+    opacity 280ms ease;
 }
 
 .time-node:hover,
@@ -1324,14 +779,12 @@ function formatDate(value) {
 .time-node.is-active {
   color: #fff;
   opacity: 1;
-  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
 }
 
 .time-node.is-active::before {
-  width: 16px;
-  height: 16px;
   background: rgba(0, 0, 0, 0.5);
-  border: 2px solid var(--cyan-strong);
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
   box-shadow: 0 0 15px rgba(215, 251, 255, 0.53);
 }
 
@@ -1356,13 +809,13 @@ function formatDate(value) {
   letter-spacing: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
+  transform-origin: left center;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .time-node.is-active .time-label {
-  font-size: 32px;
   font-weight: 500;
-  transform: scale(1.05);
-  transform-origin: left center;
+  transform: scale(1.86);
   text-shadow:
     0 0 20px rgba(215, 251, 255, 0.4),
     0 2px 4px rgba(0, 0, 0, 0.8);
@@ -1404,7 +857,7 @@ function formatDate(value) {
   overflow: visible;
   pointer-events: auto;
   perspective: 1200px;
-  contain: layout paint;
+  contain: layout;
 }
 
 .timeline-anime-card {
@@ -1425,12 +878,13 @@ function formatDate(value) {
     0 0 0 1px rgba(169, 242, 255, 0.04),
     inset 0 0 32px rgba(255, 255, 255, 0.05);
   cursor: pointer;
-  transform-style: preserve-3d;
   backface-visibility: hidden;
   letter-spacing: 0;
-  opacity: 0;
-  visibility: hidden;
-  contain: layout paint;
+  will-change: transform, opacity;
+  transition:
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms ease;
+  contain: strict;
 }
 
 .timeline-anime-card:focus-visible {
@@ -1443,7 +897,11 @@ function formatDate(value) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: translateZ(1px);
+  contain: strict;
+}
+
+.timeline-anime-card img.is-cover-loading {
+  opacity: 0;
 }
 
 .timeline-anime-card::after {
@@ -1517,7 +975,7 @@ function formatDate(value) {
   border-radius: 6px;
   background: var(--panel);
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16px);
+  contain: layout paint;
 }
 
 .timeline-console-head {
@@ -1561,10 +1019,11 @@ function formatDate(value) {
 
 .timeline-console-progress span {
   display: block;
-  width: 0%;
+  width: 100%;
   height: 100%;
   background: linear-gradient(90deg, var(--cyan-strong), var(--amber));
   transform-origin: left center;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .timeline-console-description {
@@ -1646,7 +1105,6 @@ function formatDate(value) {
   gap: 12px;
   text-align: center;
   transform: translate(-50%, -50%);
-  backdrop-filter: blur(18px);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
 }
 
@@ -1737,12 +1195,7 @@ function formatDate(value) {
   }
 
   .timeline-list {
-    flex-direction: row;
-    gap: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 8px;
-    scrollbar-width: none;
+    overflow: visible;
   }
 
   .timeline-tilt {
@@ -1750,22 +1203,19 @@ function formatDate(value) {
     transform: none;
   }
 
-  .timeline-list::-webkit-scrollbar {
-    display: none;
-  }
-
   .time-node {
-    flex: 0 0 126px;
+    top: 50%;
+    left: 50%;
+    width: 136px;
+    height: 56px;
+    margin: -28px 0 0 -68px;
     padding: 8px 8px 8px 16px;
+    transform: translate3d(calc(var(--time-offset) * 9rem), 0, 0);
   }
 
   .time-node::before {
-    top: 33px;
+    top: 50%;
     left: 6px;
-  }
-
-  .time-node.is-active::before {
-    top: 30px;
   }
 
   .time-label {
@@ -1773,8 +1223,7 @@ function formatDate(value) {
   }
 
   .time-node.is-active .time-label {
-    font-size: 16px;
-    line-height: 1.8;
+    transform: scale(1.06);
   }
 
   .timeline-info-console {
@@ -1803,8 +1252,23 @@ function formatDate(value) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .timeline-state-loader {
+  .timeline-mode-overlay *,
+  .timeline-mode-overlay *::before,
+  .timeline-mode-overlay *::after {
     animation: none;
+    transition: none;
   }
+}
+
+.is-reduced-motion *,
+.is-reduced-motion *::before,
+.is-reduced-motion *::after {
+  animation: none;
+  transition: none;
+}
+
+.is-reduced-motion .timeline-anime-card,
+.is-reduced-motion .timeline-list {
+  will-change: auto;
 }
 </style>

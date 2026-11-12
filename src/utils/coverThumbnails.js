@@ -74,9 +74,9 @@ function ensureWorker() {
   return workers.length > 0;
 }
 
-/** 引用计数合并重复封面；回收最后一个消费者时取消后台任务。失败由图片元素直载兼容。 */
-export function requestCoverThumbnail(url) {
-  const width = window.devicePixelRatio > 1.5 ? 512 : 384;
+/** 按尺寸缓存并合并重复封面；可为大卡片指定宽度，释放最后一个消费者时取消后台任务。 */
+export function requestCoverThumbnail(url, options = {}) {
+  const width = options.width || (window.devicePixelRatio > 1.5 ? 512 : 384);
   // 桌面代理 URL 在换服务器后不变，缓存必须同时区分实际后端。
   const key = `${getServerUrl()}:${width}:${url}`;
   const hit = cache.acquire(key);

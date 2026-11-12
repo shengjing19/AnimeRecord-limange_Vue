@@ -46,7 +46,7 @@ function finish(state) {
 
 async function loadCover(state) {
   const started = performance.now();
-  state.request = requestCoverThumbnail(state.url);
+  state.request = requestCoverThumbnail(state.url, { width: state.width });
   const thumbnail = await state.request.promise;
   if (state.cancelled) {
     thumbnail?.release();
@@ -62,6 +62,7 @@ async function loadCover(state) {
       /* 变更源或回收时 decode 可中断。 */
     }
     if (!state.cancelled) {
+      element.classList.remove('is-cover-loading');
       countPerformance('coversDisplayed');
       if (performance.now() - started > 1000)
         recordPerformance('slow-cover-ready', performance.now() - started);
@@ -76,6 +77,7 @@ async function loadCover(state) {
   state.timeout = setTimeout(() => {
     countPerformance('coverTimeouts');
     if (!element.complete || !element.naturalWidth) element.src = FALLBACK_COVER;
+    element.classList.remove('is-cover-loading');
     finish(state);
   }, 10000);
   element.src = thumbnail?.url || state.url;
@@ -85,6 +87,7 @@ function cleanup(element) {
   const state = states.get(element);
   if (!state) return;
   state.cancelled = true;
+  clearTimeout(state.delayTimer);
   state.stop?.();
   queue.delete(state);
   state.request?.cancel();
@@ -96,17 +99,36 @@ function cleanup(element) {
   states.delete(element);
 }
 
-function attach(element, url) {
+function getOptions(value) {
+  return typeof value === 'string' ? { url: value } : value || {};
+}
+
+function attach(element, options) {
   cleanup(element);
+  element.classList.add('is-cover-loading');
   element.removeAttribute('src');
   const state = {
     element,
-    url: url || FALLBACK_COVER,
+    url: options.url || FALLBACK_COVER,
+    width: options.width,
     cancelled: false,
     running: false,
-    priority: 0
+    priority: options.priority || 0
   };
   states.set(element, state);
+
+  // 时间线已经限制了挂载数量，直接按中心优先入队，避免 3D 变换干扰可见性判断。
+  if (options.eager) {
+    const enqueue = () => {
+      state.delayTimer = null;
+      queue.add(state);
+      schedulePump();
+    };
+    if (options.delay > 0) state.delayTimer = setTimeout(enqueue, options.delay);
+    else enqueue();
+    return;
+  }
+
   const root = element.closest('[data-cover-scroll-root], .app-main');
   state.stop = observeLazyImageTarget(element, root, (entry) => {
     if (state.cancelled) return;
@@ -125,10 +147,31 @@ function attach(element, url) {
 
 export const vLazyCover = {
   mounted(element, binding) {
-    attach(element, binding.value);
+    attach(element, getOptions(binding.value));
   },
   updated(element, binding) {
-    if (binding.value !== binding.oldValue) attach(element, binding.value);
+    const options = getOptions(binding.value);
+    const previous = getOptions(binding.oldValue);
+    if (
+      options.url !== previous.url ||
+      options.width !== previous.width ||
+      options.eager !== previous.eager
+    ) {
+      attach(element, options);
+      return;
+    }
+
+    const state = states.get(element);
+    if (state && options.eager) {
+      state.priority = options.priority || 0;
+      // 侧卡进入中心附近时立即提升优先级；离开窗口时由 cleanup 取消尚未开始的请求。
+      if (state.delayTimer && !options.delay) {
+        clearTimeout(state.delayTimer);
+        state.delayTimer = null;
+        queue.add(state);
+        schedulePump();
+      }
+    }
   },
   beforeUnmount: cleanup
 };
