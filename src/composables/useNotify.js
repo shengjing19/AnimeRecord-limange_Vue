@@ -12,6 +12,17 @@ import ToastMessage from '@/components/common/ToastMessage.vue';
 /** 全局Toast实例管理 */
 let toastInstance = null;
 let toastTimer = null;
+let toastMountNode = null;
+
+/** 替换或主动关闭消息时，连同挂载节点和定时器一起释放。 */
+function closeMessage() {
+  clearTimeout(toastTimer);
+  toastInstance?.unmount();
+  toastMountNode?.remove();
+  toastInstance = null;
+  toastMountNode = null;
+  toastTimer = null;
+}
 
 /**
  * 显示Toast消息
@@ -20,34 +31,25 @@ let toastTimer = null;
 function showMessage(options = {}) {
   const { content = '', type = 'info', duration = 3000 } = options;
 
-  // 清除上一个Toast
-  if (toastTimer) clearTimeout(toastTimer);
-  if (toastInstance) {
-    toastInstance.unmount();
-    toastInstance = null;
-  }
+  closeMessage();
 
   const mountNode = document.createElement('div');
   document.body.appendChild(mountNode);
+  toastMountNode = mountNode;
 
   toastInstance = createApp({
     render() {
       return h(ToastMessage, {
         content,
-        type
+        type,
+        onClose: closeMessage
       });
     }
   });
 
   toastInstance.mount(mountNode);
 
-  toastTimer = setTimeout(() => {
-    if (toastInstance) {
-      toastInstance.unmount();
-      document.body.removeChild(mountNode);
-      toastInstance = null;
-    }
-  }, duration);
+  toastTimer = setTimeout(closeMessage, duration);
 }
 
 /**

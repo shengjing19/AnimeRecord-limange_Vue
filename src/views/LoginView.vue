@@ -61,7 +61,8 @@
     />
     <div class="newlogin" :class="{ 'register-mode': authMode === AUTH_MODE.REGISTER }">
       <div v-if="appStore.loginStyle === 'console'" class="console-form-heading">
-        <img src="/img/app-icon.png" alt="limange" /><span>WELCOME BACK</span>
+        <img src="/img/app-icon.png" alt="limange" />
+        <span>{{ authMode === AUTH_MODE.LOGIN ? 'WELCOME BACK' : 'CREATE YOUR ARCHIVE' }}</span>
         <h2>{{ authMode === AUTH_MODE.LOGIN ? '登录你的收藏室' : '创建你的收藏室' }}</h2>
         <p>
           {{
@@ -817,14 +818,14 @@ onBeforeUnmount(() => {
   filter: blur(2px);
 }
 
-.newlogin.register-mode .login-panel {
+.login-page:not(.console-login) .newlogin.register-mode .login-panel {
   transform: translateX(-158%);
   opacity: 0;
   pointer-events: none;
   filter: blur(2px);
 }
 
-.newlogin.register-mode .register-panel {
+.login-page:not(.console-login) .newlogin.register-mode .register-panel {
   transform: translateX(-50%);
   opacity: 1;
   pointer-events: auto;
@@ -870,6 +871,11 @@ onBeforeUnmount(() => {
 
 input.newpass::placeholder {
   color: rgba(255, 255, 255, 0.507);
+}
+
+/* 使用统一的密码显隐按钮，避免 Edge 原生按钮与自定义按钮重叠。 */
+input.newpass::-ms-reveal {
+  display: none;
 }
 
 /* 密码输入框外层包装，用于绝对定位内部按钮 */
@@ -1161,9 +1167,14 @@ input.newpass::placeholder {
   display: flex;
   width: 100%;
   align-items: stretch;
-  justify-content: center;
+  justify-content: safe center;
+  min-height: 0;
+  min-width: 0;
   padding: 60px 48px;
   overflow-y: auto;
+}
+.console-login .newlogin > * {
+  flex-shrink: 0;
 }
 .console-form-heading > img {
   width: 46px;
@@ -1203,6 +1214,7 @@ input.newpass::placeholder {
   transform: none;
   opacity: 1;
   filter: none;
+  pointer-events: auto;
   display: flex;
   align-items: stretch;
   gap: 17px;
@@ -1219,7 +1231,7 @@ input.newpass::placeholder {
   padding: 0 13px;
   background: #fff;
   border: 1px solid #d7e0e9;
-  border-radius: 2px;
+  border-radius: 0;
   color: #47566b;
   font-size: 12px;
   backdrop-filter: none;
@@ -1235,6 +1247,9 @@ input.newpass::placeholder {
 .console-login .password-wrapper {
   width: 100%;
   margin: 0;
+}
+.console-login .password-wrapper .newpass {
+  padding-right: 44px;
 }
 .console-login .inline-actions {
   right: 10px;
@@ -1252,7 +1267,7 @@ input.newpass::placeholder {
   height: 42px;
   margin-top: 7px;
   border: 1px solid #297cbf;
-  border-radius: 2px;
+  border-radius: 0;
   background: #3284c9;
   color: #fff;
   display: flex;

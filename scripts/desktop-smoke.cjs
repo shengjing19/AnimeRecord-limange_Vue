@@ -65,9 +65,21 @@ async function main() {
       )
     );
     await page.screenshot({ path: '.temp/qa/desktop-library.png' });
+    await page.locator('.anime-card').first().click();
+    await page.locator('.detail-overlay').waitFor();
+    await page.getByRole('button', { name: '最大化', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.limangeDesktop.isMaximized()), true);
+    const detailBounds = await page.locator('.detail-overlay').boundingBox();
+    const titlebarBounds = await page.locator('.titlebar').boundingBox();
+    assert.ok(detailBounds.y >= titlebarBounds.y + titlebarBounds.height - 1);
+    await page.screenshot({ path: '.temp/qa/desktop-detail-maximized.png' });
+    await page.getByRole('button', { name: '还原窗口', exact: true }).click();
+    await page.getByRole('button', { name: '返回', exact: true }).click();
     await page.getByRole('tab', { name: '数据管理', exact: true }).click();
+    await page.getByRole('button', { name: '全部记录', exact: true }).click();
     await page.locator('.title-cell').first().waitFor();
     await page.reload();
+    await page.getByRole('button', { name: '全部记录', exact: true }).click();
     await page.locator('.title-cell').first().waitFor();
     assert.equal(await page.locator('.app-sidebar').count(), 1, '桌面协议刷新应恢复管理工作区');
 

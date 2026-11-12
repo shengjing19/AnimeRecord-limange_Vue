@@ -1063,9 +1063,9 @@ function formatDate(value) {
 <style scoped>
 .timeline-mode-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--app-titlebar-height) 0 0;
   z-index: 5000;
-  overflow: hidden;
+  overflow: auto;
   background: #101211;
   color: #f3f8f6;
   font-family: Inter, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
@@ -1089,7 +1089,7 @@ function formatDate(value) {
   --card-w: 300px;
   --card-h: 450px;
   position: relative;
-  height: 100vh;
+  height: 100%;
   min-height: 720px;
   overflow: hidden;
   isolation: isolate;

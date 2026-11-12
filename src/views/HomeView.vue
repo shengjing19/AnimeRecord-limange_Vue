@@ -27,8 +27,9 @@
         >
           <LoadingSpinner v-if="loading" />
           <div v-if="loadError" class="workspace-error" role="alert">
-            <span>{{ loadError }}</span
-            ><button class="subtle-button" @click="refreshActiveTab">重试</button>
+            <span>{{ loadError }}</span><button class="subtle-button" @click="refreshActiveTab">
+              重试
+            </button>
           </div>
           <template v-if="isLibraryTab && currentLibraryData">
             <div v-if="activeTab === 'finished'" class="collection-banner">
@@ -172,11 +173,14 @@
           </p>
           <div v-if="activeTab === 'settings'" class="ios-section">
             <AppearanceSettings />
-            <div class="chart-box desktop-only-setting demo-account-box" style="max-width: 600px">
-              <h4 style="margin-bottom: 15px">
-                <i class="fas fa-user-shield" style="color: var(--sys-blue); margin-right: 8px"></i>
-                演示账户
-              </h4>
+            <section class="demo-account-box" aria-labelledby="demo-account-title">
+              <div class="demo-heading">
+                <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                <div>
+                  <h3 id="demo-account-title">演示账户</h3>
+                  <p>为访客提供只读访问，浏览你的动漫收藏。</p>
+                </div>
+              </div>
               <div v-if="isDemoAccount" class="demo-account-notice">
                 当前为演示账户，仅可浏览数据，不能管理演示账户。
               </div>
@@ -227,8 +231,15 @@
                       />
                     </label>
                   </div>
-                  <button type="submit" class="demo-primary-btn" :disabled="demoSubmitting">
-                    <i :class="['fas', demoSubmitting ? 'fa-spinner fa-spin' : 'fa-toggle-on']"></i>
+                  <button
+                    type="submit"
+                    class="workbench-button is-primary demo-primary-btn"
+                    :disabled="demoSubmitting"
+                  >
+                    <i
+                      :class="['fas', demoSubmitting ? 'fa-spinner fa-spin' : 'fa-toggle-on']"
+                      aria-hidden="true"
+                    ></i>
                     {{ demoSubmitting ? '开启中' : '开启演示账户' }}
                   </button>
                 </form>
@@ -248,96 +259,32 @@
                     </label>
                     <button
                       type="submit"
-                      class="demo-primary-btn"
+                      class="workbench-button is-primary demo-primary-btn"
                       :disabled="demoPasswordSubmitting"
                     >
                       <i
                         :class="['fas', demoPasswordSubmitting ? 'fa-spinner fa-spin' : 'fa-key']"
+                        aria-hidden="true"
                       ></i>
                       {{ demoPasswordSubmitting ? '修改中' : '修改密码' }}
                     </button>
                   </form>
                   <button
-                    class="demo-danger-btn"
+                    class="workbench-button is-danger demo-danger-btn"
                     :disabled="demoDeleting"
                     @click="handleDeleteDemoUser"
                   >
-                    <i :class="['fas', demoDeleting ? 'fa-spinner fa-spin' : 'fa-trash']"></i>
+                    <i
+                      :class="['fas', demoDeleting ? 'fa-spinner fa-spin' : 'fa-trash']"
+                      aria-hidden="true"
+                    ></i>
                     {{ demoDeleting ? '删除中' : '删除演示账户' }}
                   </button>
                 </div>
               </template>
-            </div>
+            </section>
           </div>
-          <div v-if="activeTab === 'about'" class="ios-section">
-            <div class="modal-scroll-content">
-              <div class="about-grid">
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-info-circle"></i>
-                    关于
-                  </h3>
-                  <p class="about-intro">
-                    {{ APP_CONFIG.appName }}
-                    是一款动漫追番记录管理工具，帮助用户追踪已看完、最喜欢和正在追的动漫作品。
-                    支持封面图片上传、分类筛选、数据数据统计等功能。
-                  </p>
-                </div>
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-clipboard-list"></i>
-                    项目信息
-                  </h3>
-                  <table class="about-table">
-                    <tbody>
-                      <tr>
-                        <td class="about-td-label">版本号</td>
-                        <td>{{ APP_CONFIG.version }}</td>
-                      </tr>
-                      <tr>
-                        <td class="about-td-label">发布时间</td>
-                        <td>{{ APP_CONFIG.releaseDate }}</td>
-                      </tr>
-                      <tr>
-                        <td class="about-td-label">技术栈</td>
-                        <td>{{ APP_CONFIG.techStack }}</td>
-                      </tr>
-                      <tr>
-                        <td class="about-td-label">运行环境</td>
-                        <td>生产环境 (Production)</td>
-                      </tr>
-                      <tr>
-                        <td class="about-td-label">开发者</td>
-                        <td>{{ APP_CONFIG.author }}</td>
-                      </tr>
-                      <tr>
-                        <td class="about-td-label">开源地址</td>
-                        <td>
-                          <a :href="APP_CONFIG.github" target="_blank" rel="noopener noreferrer">{{
-                            APP_CONFIG.github
-                          }}</a>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-cubes"></i>
-                    生产环境依赖
-                  </h3>
-                  <table class="about-table">
-                    <tbody>
-                      <tr v-for="dep in deps" :key="dep.name">
-                        <td class="about-td-label">{{ dep.name }}</td>
-                        <td>{{ dep.version }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AboutApp v-if="activeTab === 'about'" class="ios-section" />
         </div>
       </main>
     </section>
@@ -375,7 +322,7 @@ import AnimeModal from '@/components/common/AnimeModal.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import { animeApi, demoUserApi } from '@/api/anime';
 import { useAuthStore } from '@/stores/auth';
-import { APP_CONFIG } from '@/utils/constants';
+import AboutApp from '@/components/common/AboutApp.vue';
 import { useNotify } from '@/composables/useNotify';
 const timelineBgUrl = '/img/timeline.webp';
 
@@ -707,17 +654,6 @@ const weeklyChartDom = ref(null);
 const annualChartDom = ref(null);
 let weeklyChart = null;
 let annualChart = null;
-
-/** 生产环境依赖列表 */
-const deps = [
-  { name: 'vue', version: '3.4.27' },
-  { name: 'vue-router', version: '4.3.2' },
-  { name: 'pinia', version: '2.1.7' },
-  { name: 'axios', version: '1.7.2' },
-  { name: 'echarts', version: '5.5.0' },
-  { name: 'animejs', version: '4.4.1' },
-  { name: 'vite', version: '5.2.11' }
-];
 
 /** Keep-Alive数据缓存 */
 const cachedData = shallowReactive({
@@ -1737,300 +1673,120 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(12px);
 }
 
-/* 设置页复用卡片样式，保留旧类名以兼容现有设置与演示账户模块。 */
-
-.chart-box {
-  background: rgba(255, 255, 255, 0.55);
-  border-radius: 24px;
-  padding: 30px;
-  border: 1px solid var(--liquid-border);
-  box-shadow: var(--liquid-shadow), var(--liquid-highlight);
+/* 演示账户与相邻设置卡片共用宽度、间距和表单密度。 */
+.demo-account-box {
+  max-width: 850px;
+  margin-top: 18px;
+  padding: 23px;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
-
-.chart-box h4 {
-  font-size: 18px;
-  margin-bottom: 20px;
-  font-weight: 700;
-  color: var(--sys-text-primary);
-}
-
-.chart-area {
-  width: 100%;
-  height: 260px;
-}
-
-/* 设置页 */
-
-.settings-row {
+.demo-heading {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
 }
-
-.settings-label {
-  font-weight: 600;
-  color: var(--sys-text-primary);
+.demo-heading > i {
+  padding-top: 1px;
+  color: #4584bf;
+  font-size: 16px;
 }
-
-.settings-desc {
-  font-size: 12px;
-  color: var(--sys-text-secondary);
-  margin-top: 4px;
-}
-
-.bg-toggle-group {
-  display: flex;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  padding: 4px;
-  gap: 4px;
-}
-
-.bg-radio {
-  cursor: pointer;
-  margin: 0;
-}
-
-.bg-radio input {
-  display: none;
-}
-
-.bg-radio span {
-  display: inline-block;
-  padding: 6px 16px;
-  border-radius: 6px;
+.demo-heading h3 {
   font-size: 13px;
   font-weight: 600;
-  color: var(--sys-text-secondary);
-  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  color: #3a4657;
 }
-
-.bg-radio input:checked + span {
-  background: #ffffff;
-  color: var(--sys-text-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.demo-heading p {
+  margin-top: 7px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #8a94a4;
 }
-
-/* 演示账户设置 */
-
-.demo-account-box {
-  margin-top: 24px;
-}
-
 .demo-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 20px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
 }
-
-.demo-status-pill {
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border-radius: 999px;
+.settings-label {
+  color: var(--ink);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
-
-.demo-status-pill.enabled {
-  color: #0f7a3a;
-  background: rgba(52, 199, 89, 0.14);
-}
-
-.demo-status-pill.disabled {
+.settings-desc {
+  margin-top: 5px;
   color: var(--sys-text-secondary);
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.demo-account-notice,
-.demo-loading {
-  padding: 14px 0;
-  color: var(--sys-text-secondary);
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1.6;
 }
-
+.demo-status-pill {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--sys-text-secondary);
+}
+.demo-status-pill.enabled {
+  color: #107c10;
+  border-color: #107c1033;
+  background: #107c100a;
+}
+.demo-account-notice,
+.demo-loading {
+  color: var(--sys-text-secondary);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.demo-loading {
+  padding-top: 16px;
+}
 .demo-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 18px;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 20px;
 }
-
 .demo-form-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
+  width: 100%;
 }
-
 .demo-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  color: var(--sys-text-primary);
-  font-size: 13px;
-  font-weight: 700;
+  gap: 7px;
+  width: 100%;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
 }
-
 .demo-field input {
   width: 100%;
-  height: 38px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--sys-text-primary);
-  font-size: 14px;
-  outline: none;
-  padding: 0 12px;
-  box-sizing: border-box;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid #d8e0e9;
+  border-radius: 0;
+  background: #fafbfc;
+  color: var(--ink);
+  font-size: 12px;
 }
-
 .demo-field input:focus {
-  border-color: rgba(0, 122, 255, 0.55);
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
-  background: #ffffff;
+  border-color: var(--sys-blue);
+  outline-offset: 1px;
+  background: var(--surface);
 }
-
-.demo-field input:disabled {
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.demo-primary-btn,
 .demo-danger-btn {
-  height: 38px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
-}
-
-.demo-primary-btn {
-  background: var(--sys-blue);
-  color: #ffffff;
-  box-shadow: 0 6px 14px rgba(0, 122, 255, 0.18);
-}
-
-.demo-primary-btn:hover,
-.demo-primary-btn:focus-visible {
-  background: #005ecb;
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.demo-danger-btn {
-  width: 100%;
-  margin-top: 12px;
-  background: rgba(255, 59, 48, 0.1);
-  color: #ff3b30;
-}
-
-.demo-danger-btn:hover,
-.demo-danger-btn:focus-visible {
-  background: rgba(255, 59, 48, 0.16);
-  transform: translateY(-1px);
-  outline: none;
-}
-
-.demo-primary-btn:disabled,
-.demo-danger-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
-  transform: none;
-  box-shadow: none;
-}
-
-.demo-manage-area {
   margin-top: 18px;
 }
-
-/* 关于页 */
-
-.about-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.about-card {
-  background: var(--liquid-surface);
-  border-radius: 24px;
-  border: 1px solid var(--liquid-border);
-  box-shadow: var(--liquid-shadow), var(--liquid-highlight);
-  padding: 32px;
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-}
-
-.about-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
-}
-
-.about-card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--sys-text-primary);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.about-card-title i {
-  color: var(--sys-blue);
-  font-size: 18px;
-}
-
-.about-intro {
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--sys-text-secondary);
-}
-
-.about-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.about-table tr {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.about-table tr:last-child {
-  border-bottom: none;
-}
-
-.about-table td {
-  padding: 12px 0;
-  color: var(--sys-text-primary);
-}
-
-.about-td-label {
-  width: 140px;
-  color: var(--sys-text-secondary) !important;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.about-table a {
-  color: var(--sys-blue);
-  text-decoration: none;
+@media (max-width: 800px) {
+  .demo-form-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

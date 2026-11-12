@@ -1,14 +1,11 @@
 <template>
-  <!--
-    ToastMessage.vue - 全局Toast消息组件
-    轻量级消息提示，自动消失
-    by shengjing19(Hisx12123)
-    created 2026-05-31
-  -->
   <Teleport to="body">
-    <div :class="['global-notify-message-box', 'show']">
-      <i :class="iconClass"></i>
+    <div class="global-notify-message-box" :role="type === 'error' ? 'alert' : 'status'">
+      <i :class="iconClass" aria-hidden="true"></i>
       <span class="content">{{ content }}</span>
+      <button class="icon-button" aria-label="关闭通知" @click="emit('close')">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
     </div>
   </Teleport>
 </template>
@@ -17,57 +14,65 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  /** 提示内容 */
   content: { type: String, default: '' },
-  /** 提示类型：info|success|error */
   type: { type: String, default: 'info' }
 });
-
-/** 根据类型计算图标类名 */
+const emit = defineEmits(['close']);
 const iconClass = computed(() => {
-  const map = {
-    info: 'fas fa-info-circle icon-info',
-    success: 'fas fa-check-circle icon-success',
-    error: 'fas fa-times-circle icon-error'
+  const icons = {
+    info: 'fa-circle-info',
+    success: 'fa-circle-check',
+    warning: 'fa-triangle-exclamation',
+    error: 'fa-circle-xmark'
   };
-  return map[props.type] || map.info;
+  return ['fa-solid', icons[props.type] || icons.info, `is-${props.type}`];
 });
 </script>
 
-<style>
+<style scoped>
 .global-notify-message-box {
   position: fixed;
-  top: 30px;
-  left: 50%;
-  transform: translate(-50%, -20px);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 14px 24px;
-  border-radius: 100px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), inset 0 1px 1px #fff;
+  right: 16px;
+  bottom: 16px;
   z-index: 20001;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  min-width: 200px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  opacity: 0;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100% - var(--app-titlebar-height) - 32px);
+  overflow-y: auto;
+  padding: 14px 12px 14px 16px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 40px #18233426;
 }
-
-.global-notify-message-box.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
+.global-notify-message-box > i {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--sys-blue);
 }
-
-.global-notify-message-box .icon-info { color: var(--sys-text-secondary); font-size: 18px; }
-.global-notify-message-box .icon-success { color: #34c759; font-size: 18px; }
-.global-notify-message-box .icon-error { color: #ff3b30; font-size: 18px; }
-
-.global-notify-message-box .content {
-  color: var(--sys-text-primary);
-  font-size: 14px;
-  font-weight: 600;
+.global-notify-message-box > .is-success {
+  color: #107c10;
+}
+.global-notify-message-box > .is-error {
+  color: var(--danger);
+}
+.global-notify-message-box > .is-warning {
+  color: #9d5d00;
+}
+.content {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.icon-button {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
 }
 </style>

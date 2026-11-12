@@ -7,6 +7,14 @@
   --sys-text-primary: #344157;
   --sys-text-secondary: #7c899a;
   --liquid-shadow: 0 2px 10px #23344b05;
+  --border-strong: #c6d0dc;
+  --surface: #fff;
+  --panel: #f8fafc;
+  --danger: #c42b1c;
+  --overlay: rgba(24, 24, 27, 0.38);
+  /* 窗口栏与传送到 body 的覆盖层共用尺寸，缩放时仍保持对齐。 */
+  --app-titlebar-height: 38px;
+  --layer-titlebar: 21000;
 }
 
 * {
@@ -95,6 +103,65 @@ input {
   background: #edf5fd;
   border-color: #aac9e8;
 }
+/* PVE 风格操作按钮：直角、细边框，颜色变化表达悬停与危险操作。 */
+.workbench-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.workbench-button:hover {
+  background: #eef2f6;
+  border-color: #9eafc1;
+}
+.workbench-button.is-primary {
+  background: var(--sys-blue);
+  border-color: var(--sys-blue);
+  color: #fff;
+}
+.workbench-button.is-primary:hover {
+  background: #2274bd;
+  border-color: #2274bd;
+}
+.workbench-button.is-danger {
+  background: #c42b1c0d;
+  border-color: #c42b1c66;
+  color: var(--danger);
+}
+.workbench-button.is-danger:hover {
+  background: #c42b1c1a;
+  border-color: #c42b1c99;
+}
+.workbench-button.is-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--sys-text-secondary);
+}
+.workbench-button.is-ghost:hover {
+  background: #eef2f6;
+  color: var(--ink);
+}
+.workbench-button.is-ghost.is-danger {
+  color: var(--danger);
+}
+.workbench-button.is-ghost.is-danger:hover {
+  background: #c42b1c0d;
+}
 * {
   scrollbar-width: thin;
   scrollbar-color: #becad8 transparent;
@@ -139,12 +206,11 @@ body.reduce-motion .scroll-track {
   }
 }
 
-/* 统计与关于内容继承同一套细边框，不再使用多层玻璃材质。 */
+/* 统计内容继承工作台的细边框。 */
 .workspace .stats-total-card,
 .workspace .stats-mini-card,
 .workspace .stats-chart-card,
 .workspace .stats-report-card,
-.workspace .about-card,
 .workspace .chart-box {
   border-radius: 3px;
   box-shadow: none;
@@ -155,17 +221,9 @@ body.reduce-motion .scroll-track {
   background: #edf5ff;
 }
 .workspace .stats-mini-card,
-.workspace .stats-chart-card,
-.workspace .about-card {
+.workspace .stats-chart-card {
   background: #fff;
 }
 .workspace .ios-section {
   margin-bottom: 22px;
-}
-.workspace .about-card-title {
-  font-size: 16px;
-}
-.workspace .about-intro,
-.workspace .about-table {
-  font-size: 12px;
 }

@@ -6,7 +6,12 @@
         <h1>数据管理<span>.</span></h1>
         <p>整理、添加和更新你的动漫档案。</p>
       </div>
-      <button class="subtle-button" :disabled="listLoading" @click="refresh">
+      <button
+        v-if="currentView !== 'add'"
+        class="subtle-button"
+        :disabled="listLoading"
+        @click="refresh"
+      >
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 刷新
       </button>
     </header>
@@ -76,13 +81,17 @@
                     <span v-if="!anime.isWatching" class="status-pill finished">已看</span>
                   </td>
                   <td>
-                    <button v-if="!isDemoAccount" class="btn-edit" @click="openEditModal(anime.id)">
+                    <button
+                      v-if="!isDemoAccount"
+                      class="workbench-button is-ghost btn-edit"
+                      @click="openEditModal(anime.id)"
+                    >
                       <i class="fa-solid fa-pen-to-square"></i>
                       编辑
                     </button>
                     <button
                       v-if="!isDemoAccount"
-                      class="btn-delete"
+                      class="workbench-button is-ghost is-danger btn-delete"
                       @click="handleDelete(anime.id)"
                     >
                       <i class="fa-solid fa-trash"></i>
@@ -177,8 +186,8 @@
       </section>
     </main>
     <Teleport to="body">
-      <div :class="['modal-backdrop', { show: showAddModal }]">
-        <div class="custom-modal">
+      <div v-if="showAddModal" class="modal-backdrop show" @click.self="closeAddModal">
+        <div class="custom-modal" role="dialog" aria-modal="true" aria-label="完善动漫信息">
           <div class="modal-header">
             <div>
               <div class="modal-title">完善动漫信息</div>
@@ -187,7 +196,7 @@
                 <span class="highlight">{{ addTitle }}</span>
               </div>
             </div>
-            <button class="btn-close" @click="closeAddModal">
+            <button class="btn-close icon-button" aria-label="关闭表单" @click="closeAddModal">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
@@ -246,92 +255,112 @@
             </form>
           </div>
           <div class="modal-footer">
-            <button class="btn-secondary" @click="closeAddModal">取消</button>
-            <button class="btn-primary" @click="submitAdd">确认保存</button>
+            <button class="workbench-button btn-secondary" @click="closeAddModal">取消</button>
+            <button class="workbench-button is-primary btn-primary" @click="submitAdd">
+              确认保存
+            </button>
           </div>
         </div>
       </div>
     </Teleport>
     <Teleport to="body">
-      <div :class="['modal-backdrop', { show: showEditModal }]">
-        <div class="custom-modal">
-          <div class="modal-header">
-            <div>
-              <div class="modal-title">编辑动漫信息</div>
-              <div class="modal-subtitle">
-                修改 ID:
-                <span>{{ editForm.id }}</span>
-                的信息
+      <Transition name="edit-drawer">
+        <div
+          v-if="showEditModal"
+          class="modal-backdrop edit-drawer-backdrop show"
+          @click.self="closeEditModal"
+        >
+          <section
+            ref="editDrawerRef"
+            class="custom-modal edit-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-drawer-title"
+            @keydown.esc.stop.prevent="closeEditModal"
+            @keydown.tab="trapEditFocus"
+          >
+            <div class="modal-header">
+              <div>
+                <span class="drawer-caption">动漫档案 / EDIT</span>
+                <h2 id="edit-drawer-title" class="modal-title">编辑动漫信息</h2>
+                <div class="modal-subtitle">更新作品信息、观看状态与封面。</div>
               </div>
+              <button class="btn-close icon-button" aria-label="关闭表单" @click="closeEditModal">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
-            <button class="btn-close" @click="closeEditModal">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-          <div class="modal-body custom-scrollbar">
-            <form>
-              <div class="form-group">
-                <label class="form-label">动漫标题</label>
-                <input v-model="editForm.title" type="text" class="form-input" required />
-              </div>
-              <div class="form-row">
-                <div class="form-group flex-1">
-                  <label class="form-label">总集数</label>
-                  <input v-model="editForm.episodes" type="number" class="form-input" required />
+            <div class="modal-body custom-scrollbar">
+              <form>
+                <div class="form-group">
+                  <label class="form-label">动漫标题</label>
+                  <input v-model="editForm.title" type="text" class="form-input" required />
                 </div>
-                <div class="form-group flex-1">
-                  <label class="form-label">看完/记录日期</label>
-                  <input v-model="editForm.finishDate" type="date" class="form-input" required />
+                <div class="form-row">
+                  <div class="form-group flex-1">
+                    <label class="form-label">总集数</label>
+                    <input v-model="editForm.episodes" type="number" class="form-input" required />
+                  </div>
+                  <div class="form-group flex-1">
+                    <label class="form-label">看完/记录日期</label>
+                    <input v-model="editForm.finishDate" type="date" class="form-input" required />
+                  </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">状态标记</label>
-                <div class="checkbox-row">
-                  <label class="checkbox-label">
-                    <input v-model="editForm.isFavorite" type="checkbox" />
-                    最喜欢
-                  </label>
-                  <label class="checkbox-label">
-                    <input v-model="editForm.isWatching" type="checkbox" />
-                    正在追
-                  </label>
+                <div class="form-group">
+                  <label class="form-label">状态标记</label>
+                  <div class="checkbox-row">
+                    <label class="checkbox-label">
+                      <input v-model="editForm.isFavorite" type="checkbox" />
+                      最喜欢
+                    </label>
+                    <label class="checkbox-label">
+                      <input v-model="editForm.isWatching" type="checkbox" />
+                      正在追
+                    </label>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">描述/备注</label>
-                <textarea v-model="editForm.description" class="form-input" rows="3"> </textarea>
-              </div>
-              <div class="form-group">
-                <label class="form-label">封面图片</label>
-                <div class="upload-trigger" @click="triggerEditUpload">
-                  <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
-                  <p class="upload-text">点击更换封面</p>
+                <div class="form-group">
+                  <label class="form-label">描述/备注</label>
+                  <textarea v-model="editForm.description" class="form-input" rows="3"> </textarea>
                 </div>
-                <input
-                  ref="editFileInput"
-                  type="file"
-                  accept="image/*"
-                  style="display: none"
-                  @change="handleEditFileChange"
-                />
-                <div class="preview-box">
-                  <img v-if="editPreviewUrl" :src="editPreviewUrl" class="preview-img" alt="预览" />
+                <div class="form-group">
+                  <label class="form-label">封面图片</label>
+                  <div class="upload-trigger" @click="triggerEditUpload">
+                    <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                    <p class="upload-text">点击更换封面</p>
+                  </div>
+                  <input
+                    ref="editFileInput"
+                    type="file"
+                    accept="image/*"
+                    style="display: none"
+                    @change="handleEditFileChange"
+                  />
+                  <div class="preview-box">
+                    <img
+                      v-if="editPreviewUrl"
+                      :src="editPreviewUrl"
+                      class="preview-img"
+                      alt="预览"
+                    />
+                  </div>
                 </div>
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" @click="closeEditModal">取消</button>
-            <button class="btn-primary" @click="submitEdit">保存修改</button>
-          </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button class="workbench-button btn-secondary" @click="closeEditModal">取消</button>
+              <button class="workbench-button is-primary btn-primary" @click="submitEdit">
+                保存修改
+              </button>
+            </div>
+          </section>
         </div>
-      </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import Pagination from '@/components/admin/Pagination.vue';
 import { animeApi } from '@/api/anime';
 import { useNotify } from '@/composables/useNotify';
@@ -351,8 +380,8 @@ const isDemoAccount = computed(() => authStore.isDemo);
 
 /** 原始导航项配置 */
 const baseNavItems = [
-  { key: 'all', label: '全部记录', icon: 'fa-solid fa-list-ul' },
   { key: 'add', label: '添加新番', icon: 'fa-solid fa-plus' },
+  { key: 'all', label: '全部记录', icon: 'fa-solid fa-list-ul' },
   { key: 'favorite', label: '最喜欢的动漫', icon: 'fa-solid fa-heart' },
   { key: 'watching', label: '正在追的动漫', icon: 'fas fa-running' }
 ];
@@ -363,7 +392,7 @@ const navItems = computed(() =>
 );
 
 /** 当前视图 */
-const currentView = ref('all');
+const currentView = ref(isDemoAccount.value ? 'all' : 'add');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const animeList = ref([]);
@@ -464,6 +493,8 @@ function handleSelectTmdb(item) {
 
 /** 编辑动漫相关状态 */
 const showEditModal = ref(false);
+const editDrawerRef = ref(null);
+let editTrigger = null;
 const editFileInput = ref(null);
 const editPreviewUrl = ref('');
 const editForm = reactive({
@@ -657,6 +688,8 @@ async function openEditModal(id) {
     return;
   }
 
+  editTrigger = document.activeElement;
+
   try {
     const res = await animeApi.getAnimeDetail(id);
     const anime = res.data;
@@ -676,6 +709,8 @@ async function openEditModal(id) {
     }
 
     showEditModal.value = true;
+    await nextTick();
+    editDrawerRef.value?.querySelector('input')?.focus({ preventScroll: true });
   } catch (err) {
     message({ content: '数据获取失败', type: 'error' });
   }
@@ -686,6 +721,19 @@ function closeEditModal() {
   revokePreview(editPreviewUrl.value);
   showEditModal.value = false;
   editCoverFile = null;
+  if (editTrigger?.isConnected) editTrigger.focus({ preventScroll: true });
+  editTrigger = null;
+}
+
+/** 抽屉内循环移动焦点，避免 Tab 跳入遮罩后的记录列表。 */
+function trapEditFocus(event) {
+  const controls = [...editDrawerRef.value.querySelectorAll('button, input, textarea')].filter(
+    (element) => !element.disabled && element.getClientRects().length > 0
+  );
+  const currentIndex = controls.indexOf(document.activeElement);
+  const nextIndex = (currentIndex + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+  event.preventDefault();
+  controls[nextIndex]?.focus();
 }
 
 /** 触发编辑文件上传 */
@@ -744,7 +792,12 @@ async function handleDelete(id) {
     return;
   }
 
-  const isConfirm = await confirm({ content: '确定要删除这条记录吗？' });
+  const anime = animeList.value.find((item) => item.id === id);
+  const isConfirm = await confirm({
+    title: '删除动漫记录',
+    content: `确定删除「${anime?.title || '这条记录'}」吗？此操作无法撤销。`,
+    confirmText: '删除记录'
+  });
   if (!isConfirm) return;
 
   try {
@@ -982,41 +1035,6 @@ onMounted(() => {
 .status-pill.finished {
   background: #ecfdf5;
   color: #059669;
-}
-
-/* 按钮 */
-
-.btn-edit {
-  background-color: #10b981;
-  color: white;
-  border: none;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 12px;
-  margin-right: 5px;
-  transition: background 0.2s;
-}
-
-.btn-edit:hover {
-  background-color: #059669;
-}
-
-.btn-delete {
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background 0.2s;
-}
-
-.btn-delete:hover {
-  background-color: #dc2626;
 }
 
 .readonly-tag {
@@ -1278,99 +1296,122 @@ onMounted(() => {
   color: #1d4ed8;
 }
 
-/* 模态窗口 */
-
+/* 编辑与添加弹窗沿用 PVE 的标题、内容、页脚三段布局。 */
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  inset: var(--app-titlebar-height) 0 0;
+  padding: 24px;
+  background: var(--overlay);
+  backdrop-filter: blur(2px);
   z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.15s ease;
 }
-
 .modal-backdrop.show {
   opacity: 1;
   visibility: visible;
 }
-
 .custom-modal {
-  background: #fff;
-  width: 600px;
-  max-width: 90%;
-  border-radius: 20px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-  transform: translateY(20px);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 100%;
   overflow: hidden;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: 0 24px 80px #18233433;
 }
-
-.modal-backdrop.show .custom-modal {
-  transform: translateY(0);
-}
-
 .modal-header {
-  padding: 20px 30px;
-  border-bottom: 1px solid #f1f5f9;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: #f8fafc;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
-
 .modal-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.modal-subtitle {
-  font-size: 13px;
-  color: #64748b;
-  margin-top: 4px;
-}
-
-.highlight {
-  color: #2563eb;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--ink);
 }
-
-.btn-close {
-  border: none;
-  background: transparent;
-  font-size: 18px;
-  color: #94a3b8;
-  cursor: pointer;
-  transition: 0.2s;
+.modal-subtitle {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--sys-text-secondary);
 }
-
-.btn-close:hover {
-  color: #ef4444;
-  transform: rotate(90deg);
+.highlight {
+  color: var(--ink);
 }
-
 .modal-body {
-  padding: 30px;
-  max-height: 70vh;
+  min-height: 0;
   overflow-y: auto;
+  padding: 20px;
 }
-
 .modal-footer {
-  padding: 20px 30px;
-  border-top: 1px solid #f1f5f9;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+.modal-header,
+.modal-footer {
+  flex-shrink: 0;
+}
+
+/* 编辑抽屉贴右展开，内容独立滚动，窗口栏和保存操作始终可见。 */
+.edit-drawer-backdrop {
+  justify-content: flex-end;
+  padding: 0;
+  overflow: hidden;
+}
+.edit-drawer {
+  width: min(660px, 100%);
+  height: 100%;
+  border-width: 0 0 0 1px;
+  box-shadow: -24px 0 80px #18233426;
+  transform: translateX(0);
+  transition: transform 0.2s ease;
+}
+.edit-drawer-enter-active,
+.edit-drawer-leave-active {
+  transition: opacity 0.2s ease;
+}
+.edit-drawer-enter-from,
+.edit-drawer-leave-to {
+  opacity: 0;
+}
+.edit-drawer-enter-from .edit-drawer,
+.edit-drawer-leave-to .edit-drawer {
+  transform: translateX(100%);
+}
+.edit-drawer .modal-header {
+  padding: 24px;
+  background: var(--surface);
+}
+.drawer-caption {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--sys-text-secondary);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.edit-drawer .modal-title {
+  font-size: 22px;
+}
+.edit-drawer .modal-body {
+  flex: 1;
+  padding: 24px;
+}
+.edit-drawer .modal-footer {
+  padding: 16px 24px;
 }
 
 /* 表单 */
@@ -1381,20 +1422,20 @@ onMounted(() => {
 
 .form-label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: 7px;
+  font-size: 12px;
   color: #475569;
   font-weight: 600;
 }
 
 .form-input {
   width: 100%;
-  padding: 12px 15px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  padding: 9px 11px;
+  border: 1px solid #d8e0e9;
+  border-radius: 0;
   outline: none;
   transition: 0.2s;
-  font-size: 14px;
+  font-size: 12px;
   background: #fff;
 }
 
@@ -1433,8 +1474,8 @@ onMounted(() => {
 }
 
 .upload-trigger {
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 0;
   padding: 20px;
   text-align: center;
   cursor: pointer;
@@ -1472,39 +1513,6 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 主要/次要按钮 */
-
-.btn-primary {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 10px 30px;
-  border-radius: 50px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-  transition: 0.2s;
-}
-
-.btn-primary:hover {
-  background: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  border: none;
-  padding: 10px 25px;
-  border-radius: 50px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-secondary:hover {
-  background: #e2e8f0;
-}
-
 .desktop-only {
   display: block;
 }
@@ -1536,18 +1544,11 @@ onMounted(() => {
   object-fit: cover;
   background: #eaf0f6;
 }
-.btn-edit,
-.btn-delete {
-  border-radius: 2px;
-  font-size: 11px;
+.modern-table td:last-child {
+  white-space: nowrap;
 }
 .btn-edit {
-  background: #eaf3fc;
-  color: #337ebc;
-}
-.btn-delete {
-  background: #fff0f0;
-  color: #c55964;
+  margin-right: 4px;
 }
 .status-pill {
   border-radius: 2px;
@@ -1571,28 +1572,5 @@ onMounted(() => {
 }
 .search-results-dropdown {
   border-radius: 3px;
-}
-.custom-modal {
-  border-radius: 4px;
-}
-.custom-modal .form-input {
-  border-radius: 3px;
-  font-size: 12px;
-}
-.custom-modal .btn-primary,
-.custom-modal .btn-secondary {
-  border-radius: 2px;
-  box-shadow: none;
-  font-size: 12px;
-}
-.custom-modal .btn-primary {
-  background: #3284c9;
-}
-.custom-modal .upload-trigger {
-  border-radius: 3px;
-}
-.modal-backdrop {
-  backdrop-filter: none;
-  background: #1a293d66;
 }
 </style>

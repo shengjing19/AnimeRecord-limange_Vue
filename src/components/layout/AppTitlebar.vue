@@ -48,10 +48,12 @@ onBeforeUnmount(() => unsubscribe?.());
 
 <style scoped>
 .titlebar {
+  position: relative;
+  z-index: var(--layer-titlebar);
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  height: 38px;
+  height: var(--app-titlebar-height);
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   background: #f9fafc;
