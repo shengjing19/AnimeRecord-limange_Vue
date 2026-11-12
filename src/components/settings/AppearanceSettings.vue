@@ -75,6 +75,7 @@
           aria-label="减少动态效果" /><span></span
       ></label>
     </div>
+    <PerformanceSettings />
     <ServerSettings />
   </section>
 </template>
@@ -82,6 +83,7 @@
 <script setup>
 import { useAppStore } from '@/stores/app';
 import ServerSettings from '@/components/settings/ServerSettings.vue';
+import PerformanceSettings from '@/components/settings/PerformanceSettings.vue';
 
 const appStore = useAppStore();
 const backgrounds = [

@@ -8,6 +8,7 @@
     <div
       v-for="row in visibleRows"
       :key="row.key"
+      v-memo="[row, layout.columns]"
       :class="['library-row', row.kind]"
       :style="{
         transform: 'translateY(' + row.top + 'px)',
@@ -39,39 +40,63 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
 import AnimeCard from '@/components/common/AnimeCard.vue';
-import { buildLibraryRows, findVisibleRows } from '@/utils/virtualLibrary';
+import { buildLibraryRows, findVisibleRange } from '@/utils/virtualLibrary';
+import { countPerformance, setPerformanceGauge } from '@/utils/performanceLog';
 
 const props = defineProps({ groups: { type: Array, default: () => [] } });
 defineEmits(['select']);
 const container = ref(null);
 const width = ref(1000);
-const scrollTop = ref(0);
-const viewportHeight = ref(800);
 const layout = computed(() => buildLibraryRows(props.groups, width.value));
-const visibleRows = computed(() => {
-  const overscan = layout.value.rowHeight * 2;
-  return findVisibleRows(
-    layout.value.rows,
-    scrollTop.value - overscan,
-    scrollTop.value + viewportHeight.value + overscan
-  );
-});
+const visibleRows = shallowRef([]);
 
 let scrollRoot;
 let resizeObserver;
 let frame = 0;
 let offset = 0;
+let viewportHeight = 800;
+let renderedLayout;
+let renderedStart = -1;
+let renderedEnd = -1;
 
 function syncViewport() {
-  frame = 0;
-  scrollTop.value = Math.max(0, scrollRoot.scrollTop - offset);
+  const started = performance.now();
+  const current = layout.value;
+  const top = Math.max(0, (scrollRoot?.scrollTop || 0) - offset);
+  const overscan = current.rowHeight * 2;
+  const { start, end } = findVisibleRange(
+    current.rows,
+    top - overscan,
+    top + viewportHeight + overscan
+  );
+  countPerformance('scrollRangeChecks');
+
+  // 不把每个像素的位移写入响应式状态；只有跨行或数据变化才交给 Vue 更新。
+  if (current === renderedLayout && start === renderedStart && end === renderedEnd) return;
+  renderedLayout = current;
+  renderedStart = start;
+  renderedEnd = end;
+  visibleRows.value = current.rows.slice(start, end);
+  countPerformance('libraryWindowUpdates');
+  setPerformanceGauge(
+    'mountedCards',
+    visibleRows.value.reduce((sum, row) => sum + (row.animes?.length || 0), 0)
+  );
+  setPerformanceGauge('totalRows', current.rows.length);
+  setPerformanceGauge('rangeCalculationMs', performance.now() - started);
 }
 
 function onScroll() {
-  if (!frame) frame = requestAnimationFrame(syncViewport);
+  if (!frame)
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      syncViewport();
+    });
 }
+
+watch(layout, syncViewport, { immediate: true });
 
 onMounted(() => {
   scrollRoot = container.value.closest('.app-main');
@@ -79,7 +104,7 @@ onMounted(() => {
 
   resizeObserver = new ResizeObserver(() => {
     width.value = container.value.clientWidth;
-    viewportHeight.value = scrollRoot.clientHeight;
+    viewportHeight = scrollRoot.clientHeight;
     offset =
       container.value.getBoundingClientRect().top -
       scrollRoot.getBoundingClientRect().top +
@@ -88,6 +113,8 @@ onMounted(() => {
   });
   resizeObserver.observe(container.value);
   resizeObserver.observe(scrollRoot);
+  // 加载状态/提示条会改变列表的起点，但未必改变列表自身尺寸。
+  if (container.value.parentElement) resizeObserver.observe(container.value.parentElement);
   scrollRoot.addEventListener('scroll', onScroll, { passive: true });
 });
 
@@ -108,6 +135,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0 0 auto;
   width: 100%;
+  contain: layout style;
 }
 .library-row.cards {
   display: grid;

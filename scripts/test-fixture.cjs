@@ -3,7 +3,12 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 /** 仅供自动化验证的独立服务；测试不会访问用户的 Newlimange 数据。 */
-async function startFixture({ count = 1200, originalImages = false } = {}) {
+async function startFixture({
+  count = 1200,
+  originalImages = false,
+  uniqueCovers = false,
+  largeCovers = false
+} = {}) {
   const state = {
     records: [],
     requests: [],
@@ -15,7 +20,7 @@ async function startFixture({ count = 1200, originalImages = false } = {}) {
     registered: false,
     demoUser: null
   };
-  const images = await Promise.all(
+  let images = await Promise.all(
     Array.from({ length: 21 }, (_, index) =>
       fs.readFile(
         path.join(
@@ -28,6 +33,13 @@ async function startFixture({ count = 1200, originalImages = false } = {}) {
       )
     )
   );
+  if (largeCovers) {
+    const sharp = require('sharp');
+    images = await Promise.all(
+      images.map((buffer) => sharp(buffer).resize({ width: 1600 }).jpeg({ quality: 88 }).toBuffer())
+    );
+    originalImages = true;
+  }
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://localhost');
     response.setHeader('access-control-allow-origin', '*');
@@ -48,6 +60,7 @@ async function startFixture({ count = 1200, originalImages = false } = {}) {
       authorization: Boolean(request.headers.authorization)
     });
     if (url.pathname.startsWith('/covers/')) {
+      if (url.searchParams.has('noCors')) response.removeHeader('access-control-allow-origin');
       const index = Number(url.pathname.split('/').pop().split('.')[0]);
       if (!Number.isInteger(index) || index < 0 || index > 20) {
         response.writeHead(404).end();
@@ -179,7 +192,7 @@ async function startFixture({ count = 1200, originalImages = false } = {}) {
     title: `测试作品 ${index + 1}`,
     totalEpisodes: 12,
     finishDate: '2026-11-12',
-    coverImage: `${origin}/covers/${index % 21}.${originalImages ? 'jpg' : 'webp'}`,
+    coverImage: `${origin}/covers/${index % 21}.${originalImages ? 'jpg' : 'webp'}${uniqueCovers ? '?record=' + index : ''}`,
     description: '这是本地回归测试的示例内容。',
     isFavorite: index % 3 === 0,
     isWatching: index % 5 === 0

@@ -2,12 +2,12 @@
   <img src="./logo.png" alt="limange Logo" width="180" />
 </p>
 
-## 桌面工作台 v1.1
+## 桌面工作台 v1.1.1
 
-新增漫画风格工作区、顶部标签、右侧内嵌数据管理、双登录样式和独立 EXE。详见 [桌面使用、构建与性能报告](docs/desktop-workspace.md)。
+新增漫画风格工作区、顶部标签、右侧内嵌数据管理、双登录样式和独立 EXE。v1.1.1 增加后台封面缩图、跨行更新和可导出的性能诊断，详见 [滚动优化与诊断说明](docs/scroll-performance.md) 和 [桌面使用、构建与性能报告](docs/desktop-workspace.md)。
 
-- 便携版：`release/limange-1.1.0-portable.exe`，双击即可打开。
-- 安装版：`release/limange-1.1.0-setup.exe`。
+- 便携版：`release/limange-1.1.1-portable.exe`，双击即可打开。
+- 安装版：`release/limange-1.1.1-setup.exe`。
 - 构建：`npm run desktop:build`。程序包含前端运行时，仍需连接已有 Newlimange 后端。
 
 ## 项目概览

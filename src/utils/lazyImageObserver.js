@@ -27,7 +27,7 @@ function getObserverRecord(root) {
 
         observer.unobserve(entry.target);
         callbacks.delete(entry.target);
-        callback();
+        callback(entry);
       });
     },
     {

@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('limangeDesktop', {
   isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
   close: () => ipcRenderer.invoke('window:close'),
   getServerUrl: () => ipcRenderer.invoke('settings:get-server'),
+  getPerformanceInfo: () => ipcRenderer.invoke('performance:info'),
   setServerUrl: (value) => ipcRenderer.invoke('settings:set-server', value),
   onMaximized: (callback) => {
     const listener = (_event, value) => callback(Boolean(value));

@@ -50,6 +50,16 @@ async function main() {
         .every((image) => image.complete && image.naturalWidth > 0)
     );
     assert.ok(
+      await page
+        .locator('.anime-card img')
+        .first()
+        .evaluate((image) => image.src.startsWith('blob:') && image.naturalWidth <= 512),
+      '桌面自定义协议内也必须成功生成后台缩略图'
+    );
+    const performanceInfo = await page.evaluate(() => window.limangeDesktop.getPerformanceInfo());
+    assert.equal(typeof performanceInfo.gpu.gpu_compositing, 'string');
+    console.log('桌面图形状态：', JSON.stringify(performanceInfo));
+    assert.ok(
       fixture.state.requests.some(
         (request) => request.path === '/api/anime/main' && request.authorization
       )

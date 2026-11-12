@@ -10,7 +10,7 @@ import { getServerUrl } from './server';
 /** 应用基本信息 */
 export const APP_CONFIG = {
   appName: 'limange',
-  version: 'v1.1.0',
+  version: 'v1.1.1',
   releaseDate: '2026-11-12',
   techStack: 'Spring Boot 3.5 + Vue 3 + Electron',
   author: 'Shengjing19(Hisx12123)',

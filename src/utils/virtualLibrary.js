@@ -40,6 +40,12 @@ export function buildLibraryRows(groups, width) {
 
 /** 二分定位滚动范围，滚动成本只取决于可见行数。 */
 export function findVisibleRows(rows, top, bottom) {
+  const { start, end } = findVisibleRange(rows, top, bottom);
+  return rows.slice(start, end);
+}
+
+/** 返回半开区间；滚动仍在同一组行内时，调用方可以保留数组引用。 */
+export function findVisibleRange(rows, top, bottom) {
   let low = 0;
   let high = rows.length;
 
@@ -49,8 +55,7 @@ export function findVisibleRows(rows, top, bottom) {
     else high = middle;
   }
 
-  const visible = [];
-  for (let index = low; index < rows.length && rows[index].top <= bottom; index++)
-    visible.push(rows[index]);
-  return visible;
+  let end = low;
+  while (end < rows.length && rows[end].top <= bottom) end++;
+  return { start: low, end };
 }

@@ -4,8 +4,8 @@
 
 ## 直接运行
 
-- `release/limange-1.1.0-portable.exe`：单文件便携版，双击运行，无需安装 Node、启动 Vite 或执行 BAT。
-- `release/limange-1.1.0-setup.exe`：安装版，可选择安装目录，并创建桌面和开始菜单快捷方式。
+- `release/limange-1.1.1-portable.exe`：单文件便携版，双击运行，无需安装 Node、启动 Vite 或执行 BAT。
+- `release/limange-1.1.1-setup.exe`：安装版，可选择安装目录，并创建桌面和开始菜单快捷方式。
 - `release/win-unpacked/limange.exe`：已展开的程序，必须与该目录中的资源一起保留。
 
 程序内置前端和 Electron 运行时。Newlimange 后端仍需运行在配置的服务器上；本项目不包含 Spring Boot 服务和数据库。登录页右上角「服务器设置」和应用「设置」均可修改后端地址。更换服务会退出当前账户。Web 版与桌面版各自保存登录状态。
@@ -69,6 +69,8 @@ npm run test:performance
 UI 测试在 Windows 默认使用已安装的 Edge，可通过 `PLAYWRIGHT_CHANNEL` 选择其他浏览器；其他系统先运行 `npx playwright install chromium`。所有回归使用独立本地测试服务和独立桌面用户目录，不修改真实动漫数据。测试截图在 `.temp/qa/`。
 
 ## 性能处理与测量
+
+以下为 v1.1.0 首轮优化记录。v1.1.1 在此基础上加入后台缩略图、跨行更新和本机性能诊断，当前实现及新的生产构建对比见 [滚动与封面性能优化](scroll-performance.md)。
 
 片库按月份展开为行，用二分查找渲染可见范围，额外预留两行。图片共用一个滚动根观察器，最多同时启动六个封面请求，离开渲染范围后取消排队。已移除逐卡片布局读取、滚动时标题栏状态更新和卡片缩放阴影。列表数据采用浅响应式缓存，ECharts 只加载柱状图、坐标网格和提示框，离开统计页销毁图表。
 

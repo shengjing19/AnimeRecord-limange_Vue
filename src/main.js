@@ -10,6 +10,7 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
+import { installPerformanceLog } from '@/utils/performanceLog';
 import '@/assets/styles/global.css';
 import '@/assets/styles/desktop.css';
 
@@ -22,6 +23,7 @@ app.use(router);
 
 // 桌面配置由主进程持久化，在发出第一个 API 请求前同步到渲染层。
 async function bootstrap() {
+  installPerformanceLog();
   if (window.limangeDesktop) {
     localStorage.setItem('app_server_url', await window.limangeDesktop.getServerUrl());
   }

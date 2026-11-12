@@ -137,6 +137,12 @@ if (!app.requestSingleInstanceLock()) {
       });
       registerHandler('window:close', () => mainWindow.close());
       registerHandler('settings:get-server', () => serverUrl);
+      registerHandler('performance:info', () => ({
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        platform: process.platform,
+        gpu: app.getGPUFeatureStatus()
+      }));
       registerHandler('settings:set-server', saveServer);
       createWindow();
       app.on('activate', () => {

@@ -17,6 +17,8 @@ body {
 }
 body::before {
   background-image: url('/img/manga-wallpaper.webp');
+  /* 只提升这一张固定壁纸，避免滚动内容与整屏背景反复合并栅格化。 */
+  transform: translateZ(0);
 }
 body[data-background='image']::before {
   background-image: url('/img/wallpaper.webp');

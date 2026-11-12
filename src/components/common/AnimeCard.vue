@@ -23,8 +23,7 @@
     <div class="card-info">
       <div class="card-title" :title="anime.title">{{ anime.title }}</div>
       <div class="card-meta">
-        <span>{{ anime.isWatching ? '正在追' : '已看完' }}</span
-        ><span>{{ finishYear }}</span>
+        <span>{{ anime.isWatching ? '正在追' : '已看完' }}</span><span>{{ finishYear }}</span>
       </div>
     </div>
   </button>
@@ -63,7 +62,7 @@ function handleClick() {
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  contain: layout style;
+  contain: layout paint style;
   transition: border-color 0.15s;
 }
 .anime-card:hover {
