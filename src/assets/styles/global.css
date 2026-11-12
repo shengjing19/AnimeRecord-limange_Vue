@@ -16,23 +16,20 @@
   -webkit-font-smoothing: antialiased;
 }
 
+html {
+  font-size: 16px;
+}
+
 html,
 body {
   width: 100vw;
   height: 100vh;
-  /* 解决移动端布局被状态栏或刘海遮挡的关键：安全区域变量 */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
   overflow: hidden;
   overflow-x: hidden; /* 双重锁定 */
   color: var(--sys-text-primary);
-  /* 解决移动端点击高亮 */
-  -webkit-tap-highlight-color: transparent;
 }
 
-/* 针对 iOS Webview 的弹性滚动优化 */
+/* 应用使用内部滚动容器，根节点保持固定视口。 */
 #app {
   width: 100vw;
   height: 100vh;

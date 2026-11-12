@@ -9,7 +9,6 @@
     <div class="header-blur-bg"></div>
     <div class="header-content">
       <div class="title-group">
-        <span class="header-subtitle mobile-only">{{ currentDate }}</span>
         <h1 class="page-title">{{ title }}</h1>
       </div>
     </div>
@@ -17,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 defineProps({
   /** 页面标题 */
@@ -27,10 +26,6 @@ defineProps({
 const isHidden = ref(false);
 let scrollContainer = null;
 
-const currentDate = computed(() => {
-  const date = new Date();
-  return `${date.getMonth() + 1}月${date.getDate()}日 星期${['日', '一', '二', '三', '四', '五', '六'][date.getDay()]}`;
-});
 
 onMounted(() => {
   scrollContainer = document.querySelector('.app-main');
@@ -55,12 +50,7 @@ function handleScroll() {
   if (!isScrolling) {
     window.requestAnimationFrame(() => {
       if (scrollContainer) {
-        // 移动端不执行自动隐藏逻辑
-        if (window.innerWidth <= 768) {
-          if (isHidden.value) isHidden.value = false;
-        } else {
-          isHidden.value = scrollContainer.scrollTop > 80;
-        }
+        isHidden.value = scrollContainer.scrollTop > 80;
       }
       isScrolling = false;
     });
@@ -112,65 +102,5 @@ function handleScroll() {
   letter-spacing: -1px;
   color: var(--sys-text-primary);
   transition: all 0.3s ease;
-}
-
-.mobile-only {
-  display: none;
-}
-
-/* 适配移动端--大标题 (Large Title) 样式 */
-@media (max-width: 768px) {
-  .app-header {
-    padding: max(20px, calc(env(safe-area-inset-top) + 20px)) 24px 16px;
-    height: auto;
-    min-height: 100px;
-    background: rgba(255, 255, 255, 1);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    z-index: 1000;
-    transition: none; /* 移动端不需要隐藏过渡 */
-  }
-
-  .app-header.hidden {
-    transform: none; /* 强制覆盖隐藏样式 */
-    opacity: 1;
-  }
-
-  .header-blur-bg {
-    display: none; /* 移动端使用整体毛玻璃背景 */
-  }
-
-  .header-content {
-    justify-content: flex-start; /* 标题左对齐 */
-    align-items: flex-end;
-  }
-
-  .title-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .mobile-only {
-    display: block;
-  }
-
-  .header-subtitle {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--sys-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-left: 2px;
-  }
-
-  .page-title {
-    font-size: 34px; /* 原生大标题级字号 */
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    text-align: left;
-    color: var(--sys-text-primary);
-  }
 }
 </style>

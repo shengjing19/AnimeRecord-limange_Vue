@@ -1,12 +1,5 @@
 <template>
-  <!--
-    AdminView.vue - 数据管理页面
-    动漫数据的增删改查，含搜索添加、列表展示、分页、编辑模态窗口
-    by shengjing19(Hisx12123)
-    created 2026-05-31
-  -->
   <div class="spa-layout">
-    <!-- 左侧导航 -->
     <aside class="side-nav">
       <div class="logo-centered-container">
         <div class="logo-brand-row">
@@ -14,7 +7,6 @@
         </div>
         <p class="logo-subtitle">数据管理中心</p>
       </div>
-
       <div
         v-for="nav in navItems"
         :key="nav.key"
@@ -24,166 +16,22 @@
         <i :class="nav.icon"></i>
         <span>{{ nav.label }}</span>
       </div>
-
       <div class="nav-divider"></div>
       <div class="nav-info">
         <h3>{{ APP_CONFIG.appName }}&trade;</h3>
         <span>软件版本 {{ APP_CONFIG.version }}</span>
       </div>
     </aside>
-
-    <!-- 右侧内容区 -->
     <main class="main-viewport">
-      <!-- 移动端专属 Header -->
-      <header class="mobile-app-header mobile-only">
-        <button class="mobile-back-btn" @click="router.push('/')">
-          <i class="fa-solid fa-arrow-left"></i>
-        </button>
-        <h1 class="mobile-page-title">数据管理</h1>
-      </header>
-
-      <!-- 返回主页按钮 (仅桌面端显示) -->
       <button class="back-home-btn desktop-only" @click="router.push('/')">
-        <i class="fa-solid fa-arrow-left"></i> 返回主页
+        <i class="fa-solid fa-arrow-left"></i>
+        返回主页
       </button>
-
-      <!-- 动漫列表视图 -->
       <section v-show="currentView !== 'add'" class="sub-view">
         <div class="order-container">
           <div class="results-top-bar desktop-only">
             <h2 class="page-title">{{ viewTitle }}</h2>
           </div>
-
-          <!-- 移动端卡片式列表 -->
-          <div class="mobile-card-list mobile-only custom-scrollbar" @scroll.passive="collapseMobilePagePill">
-            <div v-if="animeList.length === 0" class="empty-mobile">暂无数据</div>
-            <div v-for="anime in animeList" :key="anime.id" class="admin-mobile-card">
-              <div class="card-left">
-                <img :src="getFullImageUrl(anime.coverImage)" class="mobile-admin-thumb" />
-              </div>
-              <div class="card-right">
-                <div class="mobile-card-header">
-                  <h3 class="mobile-anime-title">{{ anime.title }}</h3>
-                  <div class="mobile-status-tag">
-                    <span v-if="anime.isFavorite" class="pill fav">最爱</span>
-                    <span v-if="anime.isWatching" class="pill watch">在追</span>
-                  </div>
-                </div>
-                <div class="mobile-card-info">
-                  <span>{{ anime.totalEpisodes }} 集</span>
-                  <span class="dot">·</span>
-                  <span>{{ anime.finishDate }}</span>
-                </div>
-                <div class="mobile-card-actions">
-                  <button v-if="!isDemoAccount" @click="openEditModal(anime.id)"><i class="fa-solid fa-pen"></i> 编辑</button>
-                  <button v-if="!isDemoAccount" class="del" @click="handleDelete(anime.id)"><i class="fa-solid fa-trash"></i> 删除</button>
-                  <span v-if="isDemoAccount" class="readonly-tag">
-                    <i class="fa-solid fa-eye"></i> 只读
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!--
-            移动端悬浮页码药丸：
-            仅承担分页状态提示与前后翻页入口，避免与底部功能菜单混用同一点击层级。
-          -->
-          <transition name="page-pill-fade">
-            <div
-              v-if="showMobilePagePill"
-              ref="mobilePagePillRef"
-              :class="[
-                'mobile-page-pill',
-                'mobile-only',
-                {
-                  'is-expanded': isPagePillExpanded,
-                  'is-dock-collapsed': isDockCollapsed
-                }
-              ]"
-              role="navigation"
-              aria-label="移动端分页"
-            >
-              <button
-                v-if="!isPagePillExpanded"
-                type="button"
-                class="page-pill-compact"
-                aria-label="展开分页控制"
-                :aria-expanded="false"
-                @click="expandMobilePagePill"
-              >
-                <span>{{ currentPage }} / {{ totalPages }}</span>
-                <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>
-              </button>
-
-              <template v-else>
-                <div class="page-pill-main-row">
-                  <button
-                    type="button"
-                    class="page-pill-action"
-                    :disabled="currentPage <= 1"
-                    aria-label="上一页"
-                    @click="changeMobilePage(-1)"
-                  >
-                    <i class="fa-solid fa-chevron-left"></i>
-                  </button>
-                  <button
-                    type="button"
-                    class="page-pill-current"
-                    aria-label="收起分页控制"
-                    :aria-expanded="true"
-                    @click="collapseMobilePagePill"
-                  >
-                    <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
-                    <small>目标 {{ pageJumpDraftValue }} 页</small>
-                  </button>
-                  <button
-                    type="button"
-                    class="page-pill-action"
-                    :disabled="currentPage >= totalPages"
-                    aria-label="下一页"
-                    @click="changeMobilePage(1)"
-                  >
-                    <i class="fa-solid fa-chevron-right"></i>
-                  </button>
-                </div>
-
-                <input
-                  type="range"
-                  class="page-pill-range"
-                  min="1"
-                  :max="totalPages"
-                  :value="pageJumpDraftValue"
-                  aria-label="快速选择目标页"
-                  @input="handlePageJumpRangeInput"
-                  @change="jumpToMobilePage"
-                />
-
-                <div class="page-pill-jump-row">
-                  <label class="page-pill-input-wrap">
-                    <span>目标</span>
-                    <input
-                      :value="pageJumpDraft"
-                      type="text"
-                      inputmode="numeric"
-                      pattern="[0-9]*"
-                      maxlength="6"
-                      autocomplete="off"
-                      aria-label="输入目标页码"
-                      @focus="clearPagePillCollapseTimer"
-                      @input="handlePageJumpInput"
-                      @keydown.enter.prevent="jumpToMobilePage"
-                    />
-                  </label>
-                  <button type="button" class="page-pill-jump-btn" @click="jumpToMobilePage">
-                    跳转
-                  </button>
-                </div>
-              </template>
-            </div>
-          </transition>
-
-          <!-- 桌面端表格视图 -->
           <div class="table-wrapper custom-scrollbar desktop-only">
             <table class="modern-table">
               <thead>
@@ -218,13 +66,16 @@
                   </td>
                   <td>
                     <button v-if="!isDemoAccount" class="btn-edit" @click="openEditModal(anime.id)">
-                      <i class="fa-solid fa-pen-to-square"></i> 编辑
+                      <i class="fa-solid fa-pen-to-square"></i>
+                      编辑
                     </button>
                     <button v-if="!isDemoAccount" class="btn-delete" @click="handleDelete(anime.id)">
-                      <i class="fa-solid fa-trash"></i> 删除
+                      <i class="fa-solid fa-trash"></i>
+                      删除
                     </button>
                     <span v-if="isDemoAccount" class="readonly-tag">
-                      <i class="fa-solid fa-eye"></i> 只读
+                      <i class="fa-solid fa-eye"></i>
+                      只读
                     </span>
                   </td>
                 </tr>
@@ -238,8 +89,6 @@
           </div>
         </div>
       </section>
-
-      <!-- 添加动漫视图 -->
       <section v-show="currentView === 'add'" class="sub-view">
         <div class="order-container">
           <section class="search-landing">
@@ -260,19 +109,12 @@
                   />
                   <button @click="handleSearch" :disabled="isSearching">
                     <i v-if="isSearching" class="fa-solid fa-spinner fa-spin"></i>
-                    <!-- 移动端使用固定图标按钮，避免文字按钮挤压输入框导致搜索栏溢出屏幕。 -->
-                    <i v-else class="fa-solid fa-magnifying-glass mobile-search-submit-icon" aria-hidden="true"></i>
                     <span v-if="!isSearching">检索</span>
                   </button>
                 </div>
-                
-                <!-- 检索结果悬浮层 (仅在触发检索后且有结果状态下展示) -->
                 <transition name="fade-down">
                   <div v-if="searchResults !== null" class="search-results-dropdown">
-                    
-                    <!-- 命中结果列表 -->
                     <div v-if="searchResults.length > 0" class="result-list custom-scrollbar">
-                      <!-- 遍历后端返回的 TMDB 精简数据源 (含图片/标题/简介) -->
                       <div v-for="(item, index) in searchResults" :key="index" class="result-item" @click="handleSelectTmdb(item)">
                         <img v-if="item.coverImage" :src="item.coverImage" class="result-cover" />
                         <div v-else class="result-cover fallback-cover"><i class="fa-solid fa-image"></i></div>
@@ -286,15 +128,13 @@
                         </div>
                       </div>
                     </div>
-                    
-                    <!-- 未命中或接口异常占位 -->
                     <div v-else class="no-results">
-                      <i class="fa-solid fa-ghost"></i> 未找到相关动漫数据
+                      <i class="fa-solid fa-ghost"></i>
+                      未找到相关动漫数据
                     </div>
-                    
-                    <!-- 后备选项,允许用户越过TMDB直接手动打开添加面板 -->
                     <div class="manual-add-option" @click="openAddModal">
-                      <i class="fa-solid fa-pen-to-square"></i> 不想通过TMDB？点击这里自行添加
+                      <i class="fa-solid fa-pen-to-square"></i>
+                      不想通过TMDB？点击这里自行添加
                     </div>
                   </div>
                 </transition>
@@ -304,8 +144,6 @@
         </div>
       </section>
     </main>
-
-    <!-- 添加动漫模态窗口 -->
     <Teleport to="body">
       <div
         :class="['modal-backdrop', { show: showAddModal }]"
@@ -315,14 +153,14 @@
             <div>
               <div class="modal-title">完善动漫信息</div>
               <div class="modal-subtitle">
-                正在添加: <span class="highlight">{{ addTitle }}</span>
+                正在添加:
+                <span class="highlight">{{ addTitle }}</span>
               </div>
             </div>
             <button class="btn-close" @click="closeAddModal">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-
           <div class="modal-body custom-scrollbar">
             <form ref="addFormRef">
               <div class="form-row">
@@ -345,7 +183,6 @@
                   />
                 </div>
               </div>
-
               <div class="form-group">
                 <label class="form-label">状态标记</label>
                 <div class="checkbox-row">
@@ -359,7 +196,6 @@
                   </label>
                 </div>
               </div>
-
               <div class="form-group">
                 <label class="form-label">描述/备注</label>
                 <textarea
@@ -367,9 +203,9 @@
                   class="form-input"
                   rows="3"
                   placeholder="写点什么..."
-                ></textarea>
+                >
+                </textarea>
               </div>
-
               <div class="form-group">
                 <label class="form-label">封面图片</label>
                 <div class="upload-trigger" @click="triggerUpload">
@@ -394,7 +230,6 @@
               </div>
             </form>
           </div>
-
           <div class="modal-footer">
             <button class="btn-secondary" @click="closeAddModal">取消</button>
             <button class="btn-primary" @click="submitAdd">确认保存</button>
@@ -402,8 +237,6 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- 编辑动漫模态窗口 -->
     <Teleport to="body">
       <div
         :class="['modal-backdrop', { show: showEditModal }]"
@@ -413,21 +246,21 @@
             <div>
               <div class="modal-title">编辑动漫信息</div>
               <div class="modal-subtitle">
-                修改 ID: <span>{{ editForm.id }}</span> 的信息
+                修改 ID:
+                <span>{{ editForm.id }}</span>
+                的信息
               </div>
             </div>
             <button class="btn-close" @click="closeEditModal">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-
           <div class="modal-body custom-scrollbar">
             <form>
               <div class="form-group">
                 <label class="form-label">动漫标题</label>
                 <input v-model="editForm.title" type="text" class="form-input" required />
               </div>
-
               <div class="form-row">
                 <div class="form-group flex-1">
                   <label class="form-label">总集数</label>
@@ -438,7 +271,6 @@
                   <input v-model="editForm.finishDate" type="date" class="form-input" required />
                 </div>
               </div>
-
               <div class="form-group">
                 <label class="form-label">状态标记</label>
                 <div class="checkbox-row">
@@ -452,16 +284,15 @@
                   </label>
                 </div>
               </div>
-
               <div class="form-group">
                 <label class="form-label">描述/备注</label>
                 <textarea
                   v-model="editForm.description"
                   class="form-input"
                   rows="3"
-                ></textarea>
+                >
+                </textarea>
               </div>
-
               <div class="form-group">
                 <label class="form-label">封面图片</label>
                 <div class="upload-trigger" @click="triggerEditUpload">
@@ -486,7 +317,6 @@
               </div>
             </form>
           </div>
-
           <div class="modal-footer">
             <button class="btn-secondary" @click="closeEditModal">取消</button>
             <button class="btn-primary" @click="submitEdit">保存修改</button>
@@ -494,49 +324,17 @@
         </div>
       </div>
     </Teleport>
-
-    <!-- 移动端-悬浮底部导航栏 -->
-    <transition name="dock-slide">
-      <nav v-if="!showAddModal && !showEditModal" class="mobile-tab-nav-wrapper mobile-only" :class="{ 'is-collapsed': isDockCollapsed }">
-        <!-- 折叠后的触发岛：仅在折叠时显示 -->
-        <div v-if="isDockCollapsed" class="expand-trigger-island" @click="isDockCollapsed = false">
-          <i class="fa-solid fa-angles-right"></i>
-        </div>
-
-        <!-- 主导航岛群 -->
-        <div class="dock-container-group" :class="{ 'hiding': isDockCollapsed }">
-          <div class="floating-dock">
-            <div
-              v-for="nav in navItems"
-              :key="nav.key"
-              :class="['dock-item', { active: currentView === nav.key }]"
-              @click="switchNav(nav.key)"
-            >
-              <i :class="nav.icon"></i>
-              <span class="dock-label">{{ nav.label.replace('的动漫', '').replace('新番', '') }}</span>
-            </div>
-          </div>
-
-          <!-- 折叠按钮岛 -->
-          <div class="collapse-island" @click="isDockCollapsed = true">
-            <i class="fa-solid fa-chevron-left"></i>
-          </div>
-        </div>
-      </nav>
-    </transition>
-
-    <!-- 版本信息 -->
     <div class="version-info desktop-only">
-      <span>{{ APP_CONFIG.appName }} {{ APP_CONFIG.copyright }}</span><br />
+      <span>{{ APP_CONFIG.appName }} {{ APP_CONFIG.copyright }}</span>
+      <br />
       <span>Github:{{ APP_CONFIG.github }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { animate, cubicBezier } from 'animejs';
 import Pagination from '@/components/admin/Pagination.vue';
 import { animeApi } from '@/api/anime';
 import { useNotify } from '@/composables/useNotify';
@@ -549,21 +347,6 @@ const authStore = useAuthStore();
 
 /** 当前登录账号是否为演示账户，演示账户仅允许读取数据 */
 const isDemoAccount = computed(() => authStore.isDemo);
-
-/** 导航项折叠状态 */
-const isDockCollapsed = ref(false);
-
-/** 移动端分页药丸展开状态，默认保持小体积以减少对列表内容的遮挡。 */
-const isPagePillExpanded = ref(false);
-
-/** 移动端分页胶囊DOM引用，用于 Dock 状态切换时执行柔和位移动画。 */
-const mobilePagePillRef = ref(null);
-
-/** 分页药丸自动收起定时器句柄，组件销毁时必须清理。 */
-let pagePillCollapseTimer = null;
-
-/** Dock 展开/收起时分页胶囊需要跨越的垂直距离，与 CSS bottom 差值保持一致。 */
-const PAGE_PILL_DOCK_SHIFT = 104;
 
 /** 原始导航项配置 */
 const baseNavItems = [
@@ -583,9 +366,6 @@ const currentView = ref(isDemoAccount.value ? 'all' : 'add');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const animeList = ref([]);
-
-/** 移动端快速跳页输入草稿，只保存用户输入的数字文本，提交前统一夹紧。 */
-const pageJumpDraft = ref('1');
 
 /** 视图标题 */
 const viewTitle = computed(() => {
@@ -708,136 +488,6 @@ function clampPage(page, total = totalPages.value) {
   return Math.min(Math.max(safePage, 1), safeTotal);
 }
 
-/** 移动端悬浮页码药丸显示条件：仅列表视图、多页数据、无模态框时启用。 */
-const showMobilePagePill = computed(() =>
-  currentView.value !== 'add' && totalPages.value > 1 && !showAddModal.value && !showEditModal.value
-);
-
-/** 需要分页胶囊的列表页会自动收起 Dock，模态框显隐不改变该判定。 */
-const shouldAutoCollapseDock = computed(() => currentView.value !== 'add' && totalPages.value > 1);
-
-/** 快速跳页草稿对应的安全页码，用于滑杆和目标页提示。 */
-const pageJumpDraftValue = computed(() =>
-  clampPage(pageJumpDraft.value || currentPage.value, totalPages.value)
-);
-
-/** 清理分页药丸自动收起定时器，避免重复计时或组件卸载后写入状态。 */
-function clearPagePillCollapseTimer() {
-  if (pagePillCollapseTimer) {
-    clearTimeout(pagePillCollapseTimer);
-    pagePillCollapseTimer = null;
-  }
-}
-
-/** 展开后短暂停留，减少悬浮控件长期遮挡列表内容。 */
-function schedulePagePillCollapse() {
-  clearPagePillCollapseTimer();
-  pagePillCollapseTimer = setTimeout(() => {
-    isPagePillExpanded.value = false;
-    pagePillCollapseTimer = null;
-  }, 1800);
-}
-
-/** 展开分页药丸，作为从页码提示进入完整分页控制的唯一入口。 */
-function expandMobilePagePill() {
-  syncPageJumpDraft(currentPage.value);
-  isPagePillExpanded.value = true;
-  clearPagePillCollapseTimer();
-}
-
-/** 主动收起分页药丸，滚动列表或点按中间区域时调用。 */
-function collapseMobilePagePill() {
-  if (!isPagePillExpanded.value) return;
-  isPagePillExpanded.value = false;
-  clearPagePillCollapseTimer();
-}
-
-/** 同步快速跳页草稿，确保展开面板时默认指向当前页。 */
-function syncPageJumpDraft(page = currentPage.value) {
-  pageJumpDraft.value = String(clampPage(page, totalPages.value));
-}
-
-/**
- * 过滤页码输入，仅保留数字，防止非法字符进入分页请求链路。
- * @param {InputEvent} event - 输入事件
- */
-function handlePageJumpInput(event) {
-  pageJumpDraft.value = String(event.target.value || '').replace(/\D/g, '');
-}
-
-/**
- * 滑杆快速选择目标页，只更新草稿页；释放滑杆时再触发跳转。
- * @param {InputEvent} event - 滑杆输入事件
- */
-function handlePageJumpRangeInput(event) {
-  clearPagePillCollapseTimer();
-  syncPageJumpDraft(event.target.value);
-}
-
-/**
- * 跳转到用户指定页码，所有入口统一夹紧页码范围。
- * @param {Event | number | string} payload - DOM事件或目标页码
- */
-function jumpToMobilePage(payload) {
-  const rawPage = typeof payload === 'number' || typeof payload === 'string'
-    ? payload
-    : pageJumpDraft.value;
-  const nextPage = clampPage(rawPage, totalPages.value);
-
-  syncPageJumpDraft(nextPage);
-  if (nextPage === currentPage.value) {
-    schedulePagePillCollapse();
-    return;
-  }
-
-  loadList(currentView.value, nextPage);
-  schedulePagePillCollapse();
-}
-
-/**
- * 使用 animejs 4 平滑衔接分页胶囊在 Dock 上方/底部空白区之间的位置变化。
- * @param {boolean} collapsed - Dock 是否处于收起态
- */
-async function animatePagePillDockShift(collapsed) {
-  if (!showMobilePagePill.value) return;
-  await nextTick();
-
-  const el = mobilePagePillRef.value;
-  if (!el) return;
-
-  const fromY = collapsed ? -PAGE_PILL_DOCK_SHIFT : PAGE_PILL_DOCK_SHIFT;
-  animate(el, {
-    translateY: [fromY, 0],
-    opacity: [0.68, 1],
-    duration: 360,
-    ease: cubicBezier(0.22, 1, 0.36, 1)
-  });
-}
-
-/** 根据分页胶囊需求自动收起或还原 Dock。 */
-function syncMobileDockState() {
-  if (window.innerWidth > 768) return;
-  isDockCollapsed.value = shouldAutoCollapseDock.value;
-  if (shouldAutoCollapseDock.value) {
-    collapseMobilePagePill();
-  }
-}
-
-/**
- * 移动端悬浮药丸翻页入口。
- * @param {number} offset - 翻页偏移量，-1 为上一页，1 为下一页
- */
-function changeMobilePage(offset) {
-  const nextPage = clampPage(currentPage.value + offset, totalPages.value);
-  if (nextPage === currentPage.value) {
-    schedulePagePillCollapse();
-    return;
-  }
-  syncPageJumpDraft(nextPage);
-  loadList(currentView.value, nextPage);
-  schedulePagePillCollapse();
-}
-
 /**
  * 切换导航视图
  */
@@ -848,8 +498,6 @@ function switchNav(key) {
   }
 
   currentView.value = key;
-  collapseMobilePagePill();
-  syncMobileDockState();
   if (key !== 'add') {
     currentPage.value = 1;
     loadList(key, 1);
@@ -870,7 +518,6 @@ async function loadList(type, page) {
     animeList.value = Array.isArray(data.content) ? data.content : [];
     totalPages.value = safeTotalPages;
     currentPage.value = clampPage(Number.isFinite(backendPage) ? backendPage : safeRequestPage, safeTotalPages);
-    syncPageJumpDraft(currentPage.value);
   } catch (err) {
     message({ content: '数据加载失败', type: 'error' });
   }
@@ -972,7 +619,6 @@ async function submitAdd() {
     closeAddModal();
     loadList('all', 1);
     currentView.value = 'all';
-    syncMobileDockState();
   } catch (err) {
     message({ content: '添加失败: ' + (err.response?.data || '未知错误'), type: 'error' });
   }
@@ -1083,36 +729,16 @@ async function handleDelete(id) {
   }
 }
 
-watch(
-  shouldAutoCollapseDock,
-  () => {
-    syncMobileDockState();
-  },
-  { flush: 'post' }
-);
-
-watch(
-  isDockCollapsed,
-  (collapsed, previous) => {
-    if (collapsed === previous) return;
-    animatePagePillDockShift(collapsed);
-  },
-  { flush: 'post' }
-);
-
 onMounted(() => {
   if (currentView.value !== 'add') {
     loadList(currentView.value, 1);
   }
 });
-
-onBeforeUnmount(() => {
-  clearPagePillCollapseTimer();
-});
 </script>
 
 <style scoped>
 /* 基础布局 */
+
 .spa-layout {
   display: flex;
   height: 100vh;
@@ -1121,6 +747,7 @@ onBeforeUnmount(() => {
 }
 
 /* 侧边栏 */
+
 .side-nav {
   padding: 20px 15px;
   width: 250px;
@@ -1204,6 +831,7 @@ onBeforeUnmount(() => {
 }
 
 /* 主内容区 */
+
 .main-viewport {
   flex: 1;
   display: flex;
@@ -1220,6 +848,7 @@ onBeforeUnmount(() => {
 }
 
 /* 返回主页按钮 */
+
 .back-home-btn {
   position: absolute;
   top: 20px;
@@ -1269,14 +898,21 @@ onBeforeUnmount(() => {
 }
 
 /* 表格 */
+
 .table-wrapper {
   flex: 1;
   overflow-y: auto;
   padding: 0 40px;
 }
 
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
 
 .modern-table {
   text-align: left;
@@ -1321,8 +957,13 @@ onBeforeUnmount(() => {
   border-bottom-color: #2563eb;
 }
 
-.modern-table tbody tr:hover td:first-child { border-left-color: #2563eb; }
-.modern-table tbody tr:hover td:last-child { border-right-color: #2563eb; }
+.modern-table tbody tr:hover td:first-child {
+  border-left-color: #2563eb;
+}
+
+.modern-table tbody tr:hover td:last-child {
+  border-right-color: #2563eb;
+}
 
 .anime-cover-thumb {
   width: 80px;
@@ -1333,8 +974,14 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-.title-cell { font-weight: 600; color: #1e293b; }
-.date-cell { color: #64748b; }
+.title-cell {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.date-cell {
+  color: #64748b;
+}
 
 .empty-cell {
   text-align: center !important;
@@ -1350,11 +997,24 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-.status-pill.favorite { background: #fce7f3; color: #db2777; margin-right: 5px; }
-.status-pill.watching { background: #eff6ff; color: #2563eb; }
-.status-pill.finished { background: #ecfdf5; color: #059669; }
+.status-pill.favorite {
+  background: #fce7f3;
+  color: #db2777;
+  margin-right: 5px;
+}
+
+.status-pill.watching {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.status-pill.finished {
+  background: #ecfdf5;
+  color: #059669;
+}
 
 /* 按钮 */
+
 .btn-edit {
   background-color: #10b981;
   color: white;
@@ -1368,7 +1028,9 @@ onBeforeUnmount(() => {
   transition: background 0.2s;
 }
 
-.btn-edit:hover { background-color: #059669; }
+.btn-edit:hover {
+  background-color: #059669;
+}
 
 .btn-delete {
   background-color: #ef4444;
@@ -1382,7 +1044,9 @@ onBeforeUnmount(() => {
   transition: background 0.2s;
 }
 
-.btn-delete:hover { background-color: #dc2626; }
+.btn-delete:hover {
+  background-color: #dc2626;
+}
 
 .readonly-tag {
   display: inline-flex;
@@ -1397,6 +1061,7 @@ onBeforeUnmount(() => {
 }
 
 /* 添加页面 */
+
 .search-landing {
   flex: 1;
   display: flex;
@@ -1407,7 +1072,9 @@ onBeforeUnmount(() => {
   padding-bottom: 10vh;
 }
 
-.hero-content { text-align: center; }
+.hero-content {
+  text-align: center;
+}
 
 .badge {
   display: inline-block;
@@ -1426,7 +1093,11 @@ onBeforeUnmount(() => {
   margin-bottom: 12px;
 }
 
-.sub-title { color: #6b7280; font-size: 16px; margin-bottom: 40px; }
+.sub-title {
+  color: #6b7280;
+  font-size: 16px;
+  margin-bottom: 40px;
+}
 
 .search-container {
   position: relative;
@@ -1453,7 +1124,11 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
 }
 
-.modern-search-bar > i { color: #9ca3af; margin-right: 15px; font-size: 18px; }
+.modern-search-bar > i {
+  color: #9ca3af;
+  margin-right: 15px;
+  font-size: 18px;
+}
 
 .modern-search-bar input {
   flex: 1;
@@ -1490,10 +1165,6 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-.mobile-search-submit-icon {
-  display: none;
-}
-
 .search-results-dropdown {
   position: absolute;
   top: 100%;
@@ -1510,6 +1181,7 @@ onBeforeUnmount(() => {
 }
 
 .result-list {
+
   /* 
    * 限制最大高度，仅显示大约 2 条数据 (每条约 100px)
    * 超过部分出现垂直滚动条
@@ -1635,6 +1307,7 @@ onBeforeUnmount(() => {
 }
 
 /* 模态窗口 */
+
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -1652,7 +1325,10 @@ onBeforeUnmount(() => {
   transition: opacity 0.3s ease;
 }
 
-.modal-backdrop.show { opacity: 1; visibility: visible; }
+.modal-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
 
 .custom-modal {
   background: #fff;
@@ -1667,7 +1343,9 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.modal-backdrop.show .custom-modal { transform: translateY(0); }
+.modal-backdrop.show .custom-modal {
+  transform: translateY(0);
+}
 
 .modal-header {
   padding: 20px 30px;
@@ -1678,10 +1356,22 @@ onBeforeUnmount(() => {
   background: #f8fafc;
 }
 
-.modal-title { font-size: 18px; font-weight: 700; color: #1e293b; }
-.modal-subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+.modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
 
-.highlight { color: #2563eb; font-weight: 600; }
+.modal-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.highlight {
+  color: #2563eb;
+  font-weight: 600;
+}
 
 .btn-close {
   border: none;
@@ -1692,9 +1382,16 @@ onBeforeUnmount(() => {
   transition: 0.2s;
 }
 
-.btn-close:hover { color: #ef4444; transform: rotate(90deg); }
+.btn-close:hover {
+  color: #ef4444;
+  transform: rotate(90deg);
+}
 
-.modal-body { padding: 30px; max-height: 70vh; overflow-y: auto; }
+.modal-body {
+  padding: 30px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
 
 .modal-footer {
   padding: 20px 30px;
@@ -1705,8 +1402,18 @@ onBeforeUnmount(() => {
 }
 
 /* 表单 */
-.form-group { margin-bottom: 20px; }
-.form-label { display: block; margin-bottom: 8px; font-size: 14px; color: #475569; font-weight: 600; }
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+}
 
 .form-input {
   width: 100%;
@@ -1724,10 +1431,21 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-.form-row { display: flex; gap: 20px; }
-.flex-1 { flex: 1; }
+.form-row {
+  display: flex;
+  gap: 20px;
+}
 
-.checkbox-row { display: flex; gap: 20px; align-items: center; padding: 10px 0; }
+.flex-1 {
+  flex: 1;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 0;
+}
 
 .checkbox-label {
   display: flex;
@@ -1738,7 +1456,9 @@ onBeforeUnmount(() => {
   color: #475569;
 }
 
-.checkbox-label input { transform: scale(1.2); }
+.checkbox-label input {
+  transform: scale(1.2);
+}
 
 .upload-trigger {
   border: 2px dashed #cbd5e1;
@@ -1749,16 +1469,39 @@ onBeforeUnmount(() => {
   transition: 0.2s;
 }
 
-.upload-trigger:hover { border-color: #2563eb; background: #f8fafc; }
+.upload-trigger:hover {
+  border-color: #2563eb;
+  background: #f8fafc;
+}
 
-.upload-icon { font-size: 24px; color: #94a3b8; }
-.upload-text { color: #64748b; font-size: 13px; margin-top: 5px; }
+.upload-icon {
+  font-size: 24px;
+  color: #94a3b8;
+}
 
-.preview-box img { max-height: 150px; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+.upload-text {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 5px;
+}
 
-.preview-img { display: block; max-height: 150px; border-radius: 8px; margin-top: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+.preview-box img {
+  max-height: 150px;
+  border-radius: 8px;
+  margin-top: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.preview-img {
+  display: block;
+  max-height: 150px;
+  border-radius: 8px;
+  margin-top: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 
 /* 主要/次要按钮 */
+
 .btn-primary {
   background: #2563eb;
   color: white;
@@ -1771,7 +1514,10 @@ onBeforeUnmount(() => {
   transition: 0.2s;
 }
 
-.btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+.btn-primary:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
 
 .btn-secondary {
   background: #f1f5f9;
@@ -1783,9 +1529,12 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.btn-secondary:hover { background: #e2e8f0; }
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
 
 /* 版本信息 */
+
 .version-info {
   position: fixed;
   left: 20px;
@@ -1797,601 +1546,7 @@ onBeforeUnmount(() => {
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
 }
 
-/* 移动端适配设计 */
-.mobile-only { display: none; }
-.desktop-only { display: block; }
-
-@media (max-width: 768px) {
-  .desktop-only { display: none !important; }
-  .mobile-only { display: flex !important; }
-  
-  .spa-layout {
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .side-nav {
-    display: none !important; /* 移动端完全隐藏桌面侧边栏 */
-  }
-
-  .main-viewport {
-    flex-direction: column;
-    width: 100vw;
-  }
-
-  /* 移动端顶栏 */
-  .mobile-app-header {
-    height: calc(80px + env(safe-area-inset-top)); /* 增加到 80px */
-    padding: env(safe-area-inset-top) 15px 0;
-    background: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    border-bottom: 1px solid #f1f5f9;
-    flex-shrink: 0;
-  }
-
-  .mobile-back-btn {
-    position: absolute;
-    left: 15px;
-    top: calc(50% + (env(safe-area-inset-top) / 2));
-    transform: translateY(-50%);
-    background: #f8fafc;
-    border: none;
-    width: 40px; /* 稍微放大返回按钮以匹配大 Header */
-    height: 40px;
-    border-radius: 50%;
-    color: #2563eb;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  }
-
-  .mobile-page-title {
-    font-size: 23px; /* 字体稍微加大 */
-    font-weight: 700;
-    color: #1e293b;
-  }
-
-  /* 移动端底部导航栏入场/离场动画 (dock-slide) */
-  .dock-slide-enter-active,
-  .dock-slide-leave-active {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .dock-slide-enter-from,
-  .dock-slide-leave-to {
-    transform: translateY(120%) scale(0.9);
-    opacity: 0;
-  }
-
-  /* 移动端选项卡导航 (Dock 风格重构) */
-  .mobile-tab-nav-wrapper {
-    position: fixed;
-    bottom: calc(20px + env(safe-area-inset-bottom));
-    left: 15px;
-    right: 15px;
-    display: flex !important;
-    justify-content: center;
-    z-index: 2500;
-    pointer-events: none; /* 关键：不拦截背景滑动 */
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* 折叠状态下的容器调整 */
-  .mobile-tab-nav-wrapper.is-collapsed {
-    justify-content: flex-start;
-  }
-
-  .dock-container-group {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    pointer-events: auto;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-origin: right center;
-  }
-
-  .dock-container-group.hiding {
-    transform: translateX(-100vw);
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .floating-dock {
-    display: flex;
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    padding: 8px;
-    border-radius: 24px;
-    gap: 8px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    max-width: calc(100vw - 100px);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .floating-dock::-webkit-scrollbar { display: none; }
-
-  /* 折叠按钮岛 & 展开按钮岛 */
-  .collapse-island, .expand-trigger-island {
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    cursor: pointer;
-    pointer-events: auto;
-    color: var(--sys-blue);
-    font-size: 18px;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  .collapse-island:active, .expand-trigger-island:active {
-    transform: scale(0.9);
-  }
-
-  /* 展开按钮的特殊入场动画 */
-  .expand-trigger-island {
-    animation: island-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-
-  @keyframes island-pop {
-    from { transform: scale(0) rotate(-180deg); opacity: 0; }
-    to { transform: scale(1) rotate(0); opacity: 1; }
-  }
-
-  .dock-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 12px;
-    min-width: 60px;
-    border-radius: 18px;
-    gap: 4px;
-    color: #64748b;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    cursor: pointer;
-  }
-
-  .dock-item i {
-    font-size: 18px;
-  }
-
-  .dock-label {
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  .dock-item.active {
-    background: #2563eb;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    transform: translateY(-2px);
-  }
-  
-  .dock-item:active {
-    transform: scale(0.92);
-  }
-
-  /* 卡片列表 */
-  .mobile-card-list {
-    display: flex !important;
-    flex-direction: column;
-    padding: 15px;
-    padding-bottom: 136px !important; /* 为底部菜单与收起态页码胶囊预留安全滚动空间 */
-    gap: 12px;
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  /* Floating Page Pill：默认以右下角小胶囊显示，展开时才提供完整翻页控制。 */
-  .mobile-page-pill {
-    position: fixed;
-    right: 18px;
-    bottom: calc(112px + env(safe-area-inset-bottom));
-    z-index: 2490;
-    width: 88px;
-    min-height: 46px;
-    padding: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.46);
-    border: 1px solid rgba(255, 255, 255, 0.46);
-    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.48);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    pointer-events: auto;
-    transition: width 0.24s ease, background 0.24s ease, box-shadow 0.24s ease;
-  }
-
-  .mobile-page-pill.is-expanded {
-    width: min(326px, calc(100vw - 42px));
-    min-height: 132px;
-    padding: 10px;
-    border-radius: 24px;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.58);
-  }
-
-  .mobile-page-pill.is-dock-collapsed {
-    bottom: calc(8px + env(safe-area-inset-bottom));
-  }
-
-  .page-pill-compact {
-    width: 100%;
-    height: 34px;
-    border: none;
-    border-radius: 999px;
-    background: rgba(248, 250, 252, 0.54);
-    color: #1e293b;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease;
-  }
-
-  .page-pill-compact:active {
-    transform: scale(0.94);
-    background: rgba(239, 246, 255, 0.7);
-  }
-
-  .page-pill-compact:focus-visible {
-    outline: 2px solid rgba(37, 99, 235, 0.45);
-    outline-offset: 2px;
-  }
-
-  .page-pill-compact i {
-    color: #2563eb;
-    font-size: 11px;
-  }
-
-  .page-pill-main-row,
-  .page-pill-jump-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .page-pill-action {
-    flex: 0 0 40px;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(37, 99, 235, 0.1);
-    color: #2563eb;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
-  }
-
-  .page-pill-action:active:not(:disabled) {
-    transform: scale(0.92);
-    background: rgba(37, 99, 235, 0.16);
-  }
-
-  .page-pill-action:focus-visible {
-    outline: 2px solid rgba(37, 99, 235, 0.45);
-    outline-offset: 2px;
-  }
-
-  .page-pill-action:disabled {
-    cursor: not-allowed;
-    opacity: 0.38;
-  }
-
-  .page-pill-current {
-    position: relative;
-    min-width: 0;
-    flex: 1;
-    min-height: 40px;
-    padding: 5px 12px 10px;
-    border-radius: 999px;
-    background: rgba(248, 250, 252, 0.56);
-    color: #1e293b;
-    border: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    cursor: pointer;
-  }
-
-  .page-pill-current span {
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 1.1;
-  }
-
-  .page-pill-current small {
-    margin-top: 3px;
-    color: #64748b;
-    font-size: 10px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .page-pill-range {
-    width: 100%;
-    height: 18px;
-    accent-color: #2563eb;
-    cursor: pointer;
-  }
-
-  .page-pill-input-wrap {
-    flex: 1;
-    min-width: 0;
-    height: 38px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: rgba(248, 250, 252, 0.56);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .page-pill-input-wrap span {
-    color: #64748b;
-    font-size: 11px;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-
-  .page-pill-input-wrap input {
-    width: 100%;
-    min-width: 0;
-    height: 28px;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: #1e293b;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 900;
-  }
-
-  .page-pill-jump-btn {
-    flex: 0 0 68px;
-    height: 38px;
-    border: none;
-    border-radius: 999px;
-    background: rgba(37, 99, 235, 0.9);
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
-  }
-
-  .page-pill-jump-btn:active {
-    transform: scale(0.96);
-  }
-
-  .page-pill-jump-btn:focus-visible,
-  .page-pill-input-wrap input:focus-visible {
-    outline: 2px solid rgba(37, 99, 235, 0.45);
-    outline-offset: 2px;
-  }
-
-  .page-pill-fade-enter-active,
-  .page-pill-fade-leave-active {
-    transition: opacity 0.22s ease, transform 0.22s ease;
-  }
-
-  .page-pill-fade-enter-from,
-  .page-pill-fade-leave-to {
-    opacity: 0;
-    transform: translateY(10px) scale(0.96);
-  }
-
-  .admin-mobile-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 12px;
-    display: flex;
-    gap: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-    border: 1px solid #f8fafc;
-  }
-
-  .mobile-admin-thumb {
-    width: 70px;
-    height: 90px;
-    object-fit: cover;
-    border-radius: 10px;
-  }
-
-  .card-right {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .mobile-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  .mobile-anime-title {
-    font-size: 15px;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .mobile-status-tag { display: flex; gap: 4px; }
-  .pill {
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 600;
-  }
-  .pill.fav { background: #fce7f3; color: #db2777; }
-  .pill.watch { background: #eff6ff; color: #2563eb; }
-
-  .mobile-card-info {
-    font-size: 12px;
-    color: #94a3b8;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .mobile-card-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 5px;
-  }
-
-  .mobile-card-actions button {
-    flex: 1;
-    padding: 6px;
-    border-radius: 8px;
-    border: none;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    background: #f1f5f9;
-    color: #475569;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-  }
-  .mobile-card-actions button.del { color: #ef4444; }
-
-  .empty-mobile {
-    text-align: center;
-    padding: 50px 0;
-    color: #94a3b8;
-    font-size: 14px;
-  }
-
-  /* 添加新番页面适配 */
-  .search-landing {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 40px 20px;
-    padding-bottom: 150px !important; /* 增加底部留白 */
-  }
-  .hero-content {
-    width: 100%;
-    max-width: 100%;
-  }
-  .main-title { font-size: 28px !important; }
-  .sub-title { font-size: 14px !important; margin-bottom: 30px !important; }
-  .search-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box;
-  }
-  .modern-search-bar {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box;
-    gap: 8px;
-    padding: 6px 6px 6px 14px !important;
-  }
-  .modern-search-bar > i {
-    flex: 0 0 auto;
-    margin-right: 0 !important;
-  }
-  .modern-search-bar input {
-    min-width: 0 !important;
-    font-size: 14px !important;
-  }
-  .modern-search-bar button { 
-    flex: 0 0 44px;
-    width: 44px;
-    min-width: 44px !important;
-    height: 44px;
-    padding: 0 !important;
-    border-radius: 50% !important;
-    font-size: 14px !important; 
-    white-space: nowrap !important;
-  }
-  .modern-search-bar button span {
-    display: none;
-  }
-  .modern-search-bar button i {
-    margin-right: 0 !important;
-    color: #fff !important;
-    font-size: 16px !important;
-  }
-  .mobile-search-submit-icon {
-    display: inline-flex;
-  }
-  
-  .search-results-dropdown {
-    position: relative;
-    box-shadow: none;
-    border-radius: 12px;
-    margin-top: 10px;
-    border: 1px solid #e2e8f0;
-  }
-  
-  .result-cover {
-    width: 45px;
-    height: 60px;
-  }
-  
-  .result-title {
-    font-size: 15px;
-  }
-
-  .result-desc {
-    -webkit-line-clamp: 1;
-  }
-  
-  .result-action {
-    opacity: 1;
-    background: transparent;
-  }
-
-  /* 模态框移动端适配 */
-  .custom-modal {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 90vh;
-    border-radius: 20px 20px 0 0 !important;
-    position: fixed;
-    bottom: 0;
-    transform: translateY(100%);
-  }
-  .modal-backdrop.show .custom-modal { transform: translateY(0); }
-  .form-row { flex-direction: column; gap: 0; }
-  
-  .version-info { display: none !important; }
+.desktop-only {
+  display: block;
 }
 </style>

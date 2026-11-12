@@ -290,33 +290,4 @@ function handleKeydown(event) {
 .global-notify-confirm-box .btn-confirm.is-info:focus-visible {
   background: #005ecb;
 }
-
-@media (max-width: 768px) {
-  .global-notify-confirm-box {
-    width: min(360px, calc(100vw - 32px));
-    border-radius: 16px;
-  }
-
-  .global-notify-confirm-box .modal-header {
-    padding: 16px 18px;
-  }
-
-  .global-notify-confirm-box .modal-body {
-    padding: 24px 18px;
-    font-size: 14px;
-  }
-
-  .global-notify-confirm-box .modal-footer {
-    padding: 8px 18px 20px;
-    display: flex;
-    gap: 10px;
-  }
-
-  .global-notify-confirm-box .btn-cancel,
-  .global-notify-confirm-box .btn-confirm {
-    flex: 1;
-    margin-right: 0;
-    padding: 11px 12px;
-  }
-}
 </style>

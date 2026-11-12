@@ -337,6 +337,7 @@ watch(() => props.visible, async (val) => {
 
 <style scoped>
 /* ========== 页面容器 ========== */
+
 .detail-overlay {
   position: fixed;
   top: 0;
@@ -350,6 +351,7 @@ watch(() => props.visible, async (val) => {
 }
 
 /* ========== 顶栏 ========== */
+
 .detail-topbar {
   position: absolute;
   top: 0;
@@ -403,6 +405,7 @@ watch(() => props.visible, async (val) => {
 }
 
 /* ========== 滚动区 ========== */
+
 .detail-scroll {
   flex: 1;
   overflow-y: auto;
@@ -410,6 +413,7 @@ watch(() => props.visible, async (val) => {
 }
 
 /* ========== 头部模糊背景 ========== */
+
 .detail-header {
   position: relative;
   width: 100%;
@@ -448,6 +452,7 @@ watch(() => props.visible, async (val) => {
 }
 
 /* ========== 信息卡片 ========== */
+
 .detail-info-card {
   display: flex;
   gap: 28px;
@@ -528,6 +533,7 @@ watch(() => props.visible, async (val) => {
 }
 
 /* ========== 简介区 ========== */
+
 .detail-description {
   padding: 28px;
   max-width: 800px;
@@ -556,19 +562,11 @@ watch(() => props.visible, async (val) => {
 }
 
 /* 浮动海报 */
+
 .detail-flying-poster img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-/* 适配移动端：放大的返回按钮 */
-@media (max-width: 768px) {
-  .detail-back-btn {
-    width: 50px !important;
-    height: 50px !important;
-    font-size: 24px !important;
-  }
 }
 </style>

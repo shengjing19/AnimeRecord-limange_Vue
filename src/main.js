@@ -11,9 +11,10 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import '@/assets/styles/global.css';
-import '@/utils/flexible.js'; // 导入移动端适配脚本
 
 const app = createApp(App);
+
+document.documentElement.dataset.client = 'desktop';
 
 app.use(createPinia());
 app.use(router);

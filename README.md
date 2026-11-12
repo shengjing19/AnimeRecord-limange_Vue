@@ -4,30 +4,8 @@
 
 ## 项目概览
 
-`limange_Vue` 是 limange 动漫记录程序的前端项目，项目采用单页应用结构，桌面端使用侧边栏导航，移动端使用底部悬浮导航与二级全屏页面，保证同一套业务在不同设备上拥有合适的操作路径。
+`limange_Vue` 是 limange 动漫记录程序的桌面端前端项目，采用 Vue 单页应用与侧边栏导航。移动端已剥离为 [limange-mobile](limange-mobile/README.md) 独立项目，可单独复制、安装依赖、构建和部署。
 <br>Tips:后端项目详见主页Newlimange
-
-## 界面预览(移动端)
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="./read-imags/mob/login.gif" alt="移动端登录与初始化预览" width="220" />
-      <br />
-      <sub>登录与初始化</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="./read-imags/mob/main.gif" alt="移动端主页与底部导航预览" width="220" />
-      <br />
-      <sub>主页与底部导航</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="./read-imags/mob/ad.gif" alt="移动端数据管理与添加中心预览" width="220" />
-      <br />
-      <sub>数据管理与添加中心</sub>
-    </td>
-  </tr>
-</table>
 
 ## 界面预览(PC端)
 
@@ -76,7 +54,7 @@
 | HTTP 客户端 | Axios |
 | 图表 | ECharts |
 | 动画 | animejs |
-| 移动端适配 | postcss-pxtorem + 自定义 flexible |
+| 样式单位 | postcss-pxtorem，桌面端根字号固定为 16px |
 | 图标 | Font Awesome 6.4.0 |
 
 ## 项目结构
@@ -86,18 +64,19 @@ limange_Vue/
 ├── logo.png                         # 项目 Logo
 ├── index.html                       # Vite 入口 HTML
 ├── package.json                     # 项目依赖与脚本
-├── vite.config.js                   # Vite 与 PostCSS 配置
+├── vite.config.js                   # 桌面端 Vite 与 PostCSS 配置
+├── limange-mobile/                  # 独立移动端工程（见该目录的 README）
 ├── public/
 │   ├── img/                         # 静态图片与动漫背景图
 │   └── fontawesome6.4.0/            # 本地图标资源
-└── src/
+└── src/                            # 桌面端源码
     ├── api/                         # Axios 实例与业务 API 封装
     ├── assets/styles/               # 全局样式与变量
     ├── components/                  # 通用组件、布局组件、管理组件
     ├── composables/                 # 通知与确认框组合式能力
     ├── router/                      # 路由与登录守卫
     ├── stores/                      # Pinia 状态
-    ├── utils/                       # 常量、工具函数、移动端适配
+    ├── utils/                       # 桌面端常量与工具函数
     └── views/                       # 登录、主页、数据管理页面
 ```
 
@@ -109,7 +88,7 @@ limange_Vue/
 src/utils/constants.js
 ```
 
-默认配置：
+配置示例（实际值以文件为准）：
 
 ```js
 export const API_BASE_URL = 'http://127.0.0.1:8231/api';
@@ -202,23 +181,11 @@ npm run preview
 
 前端会隐藏演示账户的写操作入口，并在函数层进行二次拦截。真正的权限边界仍以后端鉴权和 403 响应为准。
 
-## 移动端适配
-
-项目针对移动端做了独立交互设计：
-
-- 使用底部三岛式悬浮导航替代桌面侧边栏。
-- “我的”作为移动端个人与设置入口。
-- 数据统计、关于应用、演示账户使用全屏二级页面。
-- 管理页使用移动端卡片列表。
-- `flexible.js` 会根据视口宽度调整根字号。
-- `postcss-pxtorem` 将样式中的像素单位转换为 rem，提升跨设备一致性。
-
 ## 开发规范说明
 
 - 业务 API 统一封装在 `src/api/anime.js`。
 - 鉴权状态统一由 `src/stores/auth.js` 管理。
 - 通知与确认框统一由 `src/composables/useNotify.js` 管理。
-- 移动端样式集中在对应组件的媒体查询内维护。
 - 不建议在组件中直接拼接后端完整 URL，应优先通过 API 封装调用。
 
 ## 许可证

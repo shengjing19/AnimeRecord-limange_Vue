@@ -164,13 +164,6 @@ async function handleLogout() {
   flex-shrink: 0;
 }
 
-/* 适配移动端：小屏幕下自动隐藏侧边栏，将导航交接给底部的 AppBottomBar */
-@media (max-width: 768px) {
-  .app-sidebar {
-    display: none;
-  }
-}
-
 .sidebar-header {
   padding: 40px 20px 20px;
 }

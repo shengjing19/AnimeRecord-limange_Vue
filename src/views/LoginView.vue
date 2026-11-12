@@ -1,26 +1,15 @@
 <template>
-  <!--
-    @file LoginView.vue
-    @description 登录页面组件，包含瀑布流动画背景与液态玻璃质感登录面板
-    @author shengjing19(Hisx12123)
-    @date 2026-05-31
-    @update 2026-06-01
-  -->
   <div class="login-page">
-    <!-- 瀑布流背景层 -->
     <div class="background" aria-hidden="true">
       <div
         v-for="i in columnCount"
         :key="i"
         class="waterfall-column"
         :ref="(el) => { if (el) columns[i - 1] = el }"
-      ></div>
+      >
+      </div>
     </div>
-
-    <!-- Logo，整体页面居中显示 -->
     <img src="/img/animerecode.png" alt="Anime Record Logo" class="login-logo" />
-
-    <!-- 登录交互面板 -->
     <div class="newlogin" :class="{ 'register-mode': authMode === AUTH_MODE.REGISTER }">
       <img src="/img/UsersIcon.png" class="newico" alt="用户头像图标" />
       <div class="auth-form-viewport">
@@ -31,7 +20,6 @@
           :inert="authMode !== AUTH_MODE.LOGIN"
           @submit.prevent="handleLogin"
         >
-          <!-- 用户名输入域 -->
           <input
             v-model="loginUsername"
             type="text"
@@ -43,7 +31,6 @@
             required
             aria-required="true"
           />
-          <!-- 密码输入与内联提交按钮域 -->
           <div class="password-wrapper">
             <input
               v-model="loginPassword"
@@ -57,7 +44,6 @@
               aria-required="true"
             />
             <div class="inline-actions" v-show="loginPassword.length > 0">
-              <!-- 显示/隐藏密码切换按钮 -->
               <button
                 type="button"
                 class="inline-action-btn toggle-pwd-btn"
@@ -68,7 +54,6 @@
               >
                 <i :class="['fa-solid', showLoginPassword ? 'fa-eye-slash' : 'fa-eye']"></i>
               </button>
-              <!-- 动态显示的右侧圆形提交按钮 -->
               <button
                 type="submit"
                 class="inline-action-btn submit-btn"
@@ -81,7 +66,6 @@
             </div>
           </div>
         </form>
-
         <form
           class="auth-form-panel register-panel"
           aria-label="系统初始化注册表单"
@@ -89,7 +73,6 @@
           :inert="authMode !== AUTH_MODE.REGISTER"
           @submit.prevent="handleRegister"
         >
-          <!-- 初始化用户名输入域 -->
           <input
             ref="registerUsernameInput"
             v-model="registerUsername"
@@ -102,7 +85,6 @@
             required
             aria-required="true"
           />
-          <!-- 初始化密码输入与显示控制域 -->
           <div class="password-wrapper">
             <input
               v-model="registerPassword"
@@ -126,7 +108,6 @@
               >
                 <i :class="['fa-solid', showRegisterPassword ? 'fa-eye-slash' : 'fa-eye']"></i>
               </button>
-              <!-- 动态显示的右侧圆形注册按钮 -->
               <button
                 type="submit"
                 class="inline-action-btn submit-btn register-submit-btn"
@@ -162,13 +143,11 @@
           返回登录
         </button>
       </div>
-      <!-- 登录/注册错误提示信息：独立于动画轨道，避免轨道裁切异常文案。 -->
       <div v-if="activeErrorMsg" class="login-error" role="alert">{{ activeErrorMsg }}</div>
     </div>
-
-    <!-- 系统版本与环境信息展示 -->
     <div class="version-info">
-      <span>{{ APP_CONFIG.appName }} {{ APP_CONFIG.version }} ({{ APP_CONFIG.techStack }})</span><br />
+      <span>{{ APP_CONFIG.appName }} {{ APP_CONFIG.version }} ({{ APP_CONFIG.techStack }})</span>
+      <br />
       <span>Github: {{ APP_CONFIG.github }}</span>
     </div>
   </div>
@@ -234,9 +213,9 @@ const activeErrorMsg = computed(() =>
 );
 
 /** 
- * 瀑布流列数，根据窗口宽度动态调整
+ * 桌面端使用四列瀑布流背景
  */
-const columnCount = ref(window.innerWidth <= 768 ? 2 : 4);
+const columnCount = ref(4);
 
 /** 
  * 瀑布流列DOM引用，使用 shallowRef 提升性能，避免深层代理 
@@ -532,6 +511,7 @@ onBeforeUnmount(() => {
 }
 
 /* 瀑布流背景层样式 */
+
 .background {
   position: fixed;
   top: 0;
@@ -562,6 +542,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 1rem;
   will-change: transform;
+
   /* 初始不可见，防止布局跳变 */
   opacity: 0;
   transition: opacity 0.8s ease;
@@ -578,10 +559,21 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
-.waterfall-column:nth-child(1) :deep(.scroll-track) { animation-delay: -10s; }
-.waterfall-column:nth-child(2) :deep(.scroll-track) { animation-delay: -25s; }
-.waterfall-column:nth-child(3) :deep(.scroll-track) { animation-delay: -40s; }
-.waterfall-column:nth-child(4) :deep(.scroll-track) { animation-delay: -15s; }
+.waterfall-column:nth-child(1) :deep(.scroll-track) {
+  animation-delay: -10s;
+}
+
+.waterfall-column:nth-child(2) :deep(.scroll-track) {
+  animation-delay: -25s;
+}
+
+.waterfall-column:nth-child(3) :deep(.scroll-track) {
+  animation-delay: -40s;
+}
+
+.waterfall-column:nth-child(4) :deep(.scroll-track) {
+  animation-delay: -15s;
+}
 
 .background :deep(.waterfall-column img) {
   width: 100%;
@@ -592,26 +584,39 @@ onBeforeUnmount(() => {
 }
 
 @keyframes scroll {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-50%); } /* 滚动距离改为50%，因为复制了一份wrapper */
+
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(-50%);
+  }
+
+  /* 滚动距离改为50%，因为复制了一份wrapper */
 }
 
 /* 品牌 Logo 居中显示 */
+
 .login-logo {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 1300px;
-  max-width: 90vw; /* 确保在小屏幕下不会超出 */
+  max-width: 90vw;
+
+  /* 确保在小屏幕下不会超出 */
   height: auto;
   z-index: 1;
+
   /* 增加禁止点击防止误操作及被选取 */
   pointer-events: none;
   user-select: none;
 }
 
 /* 登录面板容器 */
+
 .newlogin {
   position: absolute;
   bottom: 50px;
@@ -619,7 +624,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 2; /* 确保层级高于背景和Logo */
+  z-index: 2;
+
+  /* 确保层级高于背景和Logo */
   transition: bottom 0.3s ease;
 }
 
@@ -630,6 +637,7 @@ onBeforeUnmount(() => {
 }
 
 /* 登录与初始化注册表单动画轨道 */
+
 .auth-form-viewport {
   position: relative;
   width: 230px;
@@ -680,6 +688,7 @@ onBeforeUnmount(() => {
 }
 
 /* 统一输入框样式 */
+
 .newpass {
   width: 150px;
   height: 25px;
@@ -688,7 +697,9 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 1000px;
-  border: 1px solid rgba(255, 255, 255, 0.2); /* 增加细微边框增强轮廓与对比度 */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  /* 增加细微边框增强轮廓与对比度 */
   transition: transform 0.15s ease-in-out, background 0.2s ease, border-color 0.2s;
   margin-top: 5px;
   padding: 4px 12px;
@@ -715,6 +726,7 @@ input.newpass::placeholder {
 }
 
 /* 密码输入框外层包装，用于绝对定位内部按钮 */
+
 .password-wrapper {
   position: relative;
   display: inline-flex;
@@ -722,12 +734,16 @@ input.newpass::placeholder {
 }
 
 /* 覆盖默认的 newpass 边距，由 wrapper 统一控制 */
+
 .password-wrapper .newpass {
   margin-top: 0;
-  padding-right: 50px; /* 为右侧两个按钮预留足够交互空间 */
+  padding-right: 50px;
+
+  /* 为右侧两个按钮预留足够交互空间 */
 }
 
 /* 密码框内联操作区容器 */
+
 .inline-actions {
   position: absolute;
   right: 4px;
@@ -739,6 +755,7 @@ input.newpass::placeholder {
 }
 
 /* 密码框内联操作按钮基础样式 */
+
 .inline-action-btn {
   width: 20px;
   height: 20px;
@@ -830,6 +847,7 @@ input.newpass::placeholder {
 }
 
 /* 版本与系统环境信息 */
+
 .version-info {
   position: fixed;
   left: 20px;
@@ -840,70 +858,5 @@ input.newpass::placeholder {
   opacity: 0.9;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
   user-select: none;
-}
-
-/* 移动端特定适配 */
-@media (max-width: 768px) {
-  .login-page {
-    /* 使用 flex-end 配合 padding 确保面板位置固定在底部区域 */
-    /* 增加 padding-bottom 将面板向上推，填补中间的空旷感 */
-    justify-content: flex-end;
-    padding-bottom: max(120px, calc(env(safe-area-inset-bottom) + 80px));
-  }
-
-  .newlogin {
-    /* 移除绝对定位，改为由 flex 布局控制 */
-    position: relative;
-    bottom: 0;
-    z-index: 10;
-  }
-
-  .auth-form-viewport {
-    width: min(280px, 84vw);
-  }
-
-  .auth-form-panel {
-    width: min(240px, 80vw);
-  }
-
-  .newpass {
-    width: min(210px, 72vw);
-    font-size: 14px;
-  }
-
-  .password-wrapper .newpass {
-    padding-right: 58px;
-  }
-
-  .inline-action-btn {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-  }
-
-  .login-tip-row {
-    max-width: min(260px, 86vw);
-    gap: 4px 8px;
-  }
-
-  .newlogintip {
-    font-size: 14px;
-  }
-
-  .register-link {
-    font-size: 13px;
-  }
-
-  .login-logo {
-    /* 将 Logo 尺寸调至 650px */
-    width: 650px; 
-    max-width: 160vw !important;
-    /* Logo 稍微向下移一点，从 30% 到 35%，缩短与面板的距离 */
-    top: 35%; 
-  }
-
-  .waterfall-column:nth-child(n+3) {
-    display: none !important; /* 隐藏多余的瀑布流列 */
-  }
 }
 </style>

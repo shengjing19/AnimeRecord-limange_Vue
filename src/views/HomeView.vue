@@ -1,25 +1,10 @@
 <template>
-  <!--
-    HomeView.vue - 主页视图
-    包含侧边栏导航、Keep-Alive缓存、Tab内容切换、详情弹窗
-    by shengjing19(Hisx12123)
-    created 2026-05-31
-  -->
   <div class="app-container">
-    <!-- 侧边栏 -->
     <AppSidebar :active-tab="activeTab" @tab-change="handleTabChange" />
-
-    <!-- 主内容区 -->
     <main class="app-main" ref="mainContainer">
-      <!-- 顶部导航头 -->
       <AppHeader v-if="activeTab !== 'stats' || !cachedData.stats" :title="pageTitle" />
-
-      <!-- 内容区域，使用KeepAlive缓存机制 -->
       <div class="content-section" ref="contentSection">
-        <!-- 加载动画 -->
         <LoadingSpinner v-if="loading" />
-
-        <!-- 已看完/最喜欢/正在追 列表 -->
         <template v-if="activeTab === 'finished' && cachedData.finished">
           <div
             v-for="group in cachedData.finished.groupedAnimes"
@@ -42,7 +27,6 @@
           </div>
           <p v-if="!cachedData.finished.groupedAnimes?.length" class="empty-text">暂无数据</p>
         </template>
-
         <template v-if="activeTab === 'favorite' && cachedData.favorite">
           <div class="ios-section">
             <div class="ios-section-header">
@@ -60,7 +44,6 @@
           </div>
           <p v-if="!cachedData.favorite.animes?.length" class="empty-text">暂无数据</p>
         </template>
-
         <template v-if="activeTab === 'watching' && cachedData.watching">
           <div class="ios-section">
             <div class="ios-section-header">
@@ -78,132 +61,121 @@
           </div>
           <p v-if="!cachedData.watching.animes?.length" class="empty-text">暂无数据</p>
         </template>
-
-        <!-- 数据统计 -->
-        <transition name="mobile-modal">
-          <div v-if="activeTab === 'stats' && cachedData.stats" class="mobile-fullscreen-modal stats-dashboard-page">
-            <div class="stats-dashboard-shell">
-              <header class="stats-dashboard-header">
-                <button
-                  class="stats-back-btn mobile-only"
-                  type="button"
-                  aria-label="返回我的"
-                  @click="handleTabChange({ key: 'settings', label: '我的' })"
-                >
-                  <i class="fas fa-arrow-left"></i>
-                </button>
-                <div class="stats-title-group">
-                  <h2>数据统计</h2>
-                  <p>查看你的动漫观看档案</p>
-                </div>
-              </header>
-
-              <div class="modal-scroll-content stats-dashboard-scroll">
-                <section class="stats-overview-grid" aria-label="动漫观看总览">
-                  <article class="stats-total-card">
-                    <span class="stats-card-label">累计已看</span>
-                    <div class="stats-total-value">
-                      <strong>{{ statsSummary.totalFinished }}</strong>
-                      <span>部</span>
-                    </div>
-                    <p class="stats-total-note">
-                      <i class="fas fa-star" aria-hidden="true"></i>
-                      这是你与动漫相伴的每一天！
-                      <i class="fas fa-star" aria-hidden="true"></i>
-                    </p>
-                  </article>
-
-                  <div class="stats-mini-grid">
-                    <article
-                      v-for="item in statsMetricCards"
-                      :key="item.key"
-                      class="stats-mini-card"
-                    >
-                      <span :class="['stats-icon-badge', item.tone]">
-                        <i :class="item.icon" aria-hidden="true"></i>
-                      </span>
-                      <span class="stats-mini-label">{{ item.label }}</span>
-                      <strong>{{ item.value }} <small>{{ item.unit }}</small></strong>
-                      <p>{{ item.desc }}</p>
-                    </article>
-                  </div>
-                </section>
-
-                <section class="stats-chart-grid" aria-label="动漫观看趋势">
-                  <article class="stats-chart-card">
-                    <div class="stats-card-heading">
-                      <h3>
-                        <i class="fas fa-chart-simple" aria-hidden="true"></i>
-                        近7天观看部数
-                      </h3>
-                    </div>
-                    <p class="stats-chart-desc">
-                      近7天共观看 <strong>{{ statsSummary.weeklyTotal }}</strong> 部，最高单日
-                      <strong>{{ statsSummary.weeklyPeak }}</strong> 部
-                    </p>
-                    <div ref="weeklyChartDom" class="stats-chart-area"></div>
-                  </article>
-
-                  <article class="stats-chart-card">
-                    <div class="stats-card-heading">
-                      <h3>
-                        <i class="fas fa-chart-column" aria-hidden="true"></i>
-                        {{ currentYear }} 年度观看趋势
-                      </h3>
-                      <span class="stats-chart-pill">部数</span>
-                    </div>
-                    <div ref="annualChartDom" class="stats-chart-area"></div>
-                  </article>
-                </section>
-
-                <section class="stats-report-card" aria-label="年度观看报告">
-                  <div class="stats-report-content">
-                    <h3>
-                      <i class="fas fa-award" aria-hidden="true"></i>
-                      {{ currentYear }} 年观看报告
-                    </h3>
-                    <div class="stats-report-grid">
-                      <div class="stats-report-item">
-                        <span class="report-icon blue"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
-                        <p>看过</p>
-                        <strong>{{ statsSummary.totalFinished }} <small>部动漫</small></strong>
-                      </div>
-                      <div class="stats-report-item">
-                        <span class="report-icon purple"><i class="fas fa-book-open" aria-hidden="true"></i></span>
-                        <p>共观看</p>
-                        <strong>{{ statsSummary.annualTotal }} <small>部</small></strong>
-                      </div>
-                      <div class="stats-report-item">
-                        <span class="report-icon cyan"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
-                        <p>最活跃的月份是</p>
-                        <strong>{{ statsSummary.peakMonth }}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="stats-report-art" aria-hidden="true"></div>
-                </section>
+        <div v-if="activeTab === 'stats' && cachedData.stats" class="stats-dashboard-page">
+          <div class="stats-dashboard-shell">
+            <header class="stats-dashboard-header">
+              <div class="stats-title-group">
+                <h2>数据统计</h2>
+                <p>查看你的动漫观看档案</p>
               </div>
+            </header>
+            <div class="modal-scroll-content stats-dashboard-scroll">
+              <section class="stats-overview-grid" aria-label="动漫观看总览">
+                <article class="stats-total-card">
+                  <span class="stats-card-label">累计已看</span>
+                  <div class="stats-total-value">
+                    <strong>{{ statsSummary.totalFinished }}</strong>
+                    <span>部</span>
+                  </div>
+                  <p class="stats-total-note">
+                    <i class="fas fa-star" aria-hidden="true"></i>
+                    这是你与动漫相伴的每一天！
+                    <i class="fas fa-star" aria-hidden="true"></i>
+                  </p>
+                </article>
+                <div class="stats-mini-grid">
+                  <article
+                    v-for="item in statsMetricCards"
+                    :key="item.key"
+                    class="stats-mini-card"
+                  >
+                    <span :class="['stats-icon-badge', item.tone]">
+                      <i :class="item.icon" aria-hidden="true"></i>
+                    </span>
+                    <span class="stats-mini-label">{{ item.label }}</span>
+                    <strong>{{ item.value }} <small>{{ item.unit }}</small></strong>
+                    <p>{{ item.desc }}</p>
+                  </article>
+                </div>
+              </section>
+              <section class="stats-chart-grid" aria-label="动漫观看趋势">
+                <article class="stats-chart-card">
+                  <div class="stats-card-heading">
+                    <h3>
+                      <i class="fas fa-chart-simple" aria-hidden="true"></i>
+                      近7天观看部数
+                    </h3>
+                  </div>
+                  <p class="stats-chart-desc">
+                    近7天共观看
+                    <strong>{{ statsSummary.weeklyTotal }}</strong>
+                    部，最高单日
+                    <strong>{{ statsSummary.weeklyPeak }}</strong>
+                    部
+                  </p>
+                  <div ref="weeklyChartDom" class="stats-chart-area"></div>
+                </article>
+                <article class="stats-chart-card">
+                  <div class="stats-card-heading">
+                    <h3>
+                      <i class="fas fa-chart-column" aria-hidden="true"></i>
+                      {{ currentYear }}
+                      年度观看趋势
+                    </h3>
+                    <span class="stats-chart-pill">部数</span>
+                  </div>
+                  <div ref="annualChartDom" class="stats-chart-area"></div>
+                </article>
+              </section>
+              <section class="stats-report-card" aria-label="年度观看报告">
+                <div class="stats-report-content">
+                  <h3>
+                    <i class="fas fa-award" aria-hidden="true"></i>
+                    {{ currentYear }}
+                    年观看报告
+                  </h3>
+                  <div class="stats-report-grid">
+                    <div class="stats-report-item">
+                      <span class="report-icon blue"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
+                      <p>看过</p>
+                      <strong>{{ statsSummary.totalFinished }} <small>部动漫</small></strong>
+                    </div>
+                    <div class="stats-report-item">
+                      <span class="report-icon purple"><i class="fas fa-book-open" aria-hidden="true"></i></span>
+                      <p>共观看</p>
+                      <strong>{{ statsSummary.annualTotal }} <small>部</small></strong>
+                    </div>
+                    <div class="stats-report-item">
+                      <span class="report-icon cyan"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
+                      <p>最活跃的月份是</p>
+                      <strong>{{ statsSummary.peakMonth }}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="stats-report-art" aria-hidden="true"></div>
+              </section>
+              <button
+                class="stats-timeline-entry"
+                type="button"
+                :style="timelineEntryStyle"
+                aria-label="打开时间线模式"
+                @click="openTimelineMode"
+              >
+                <span class="timeline-entry-copy">
+                  <span class="timeline-entry-kicker">各年度观看报告</span>
+                  <strong>时间线模式</strong>
+                  <small>以月份穿梭你的已看完档案</small>
+                </span>
+                <span class="timeline-entry-action" aria-hidden="true">
+                  <i class="fas fa-arrow-right"></i>
+                </span>
+              </button>
             </div>
           </div>
-        </transition>
+        </div>
         <p v-if="activeTab === 'stats' && !loading && !cachedData.stats" class="empty-text">暂无统计数据</p>
-
-        <!-- 设置页面 -->
         <div v-if="activeTab === 'settings'" class="ios-section">
           <div class="ios-section-header desktop-only-setting">应用设置</div>
-          
-          <!-- 移动端，用户主页信息 (头像 + 昵称) -->
-          <div class="mobile-user-profile mobile-only">
-            <div class="mobile-avatar">
-              <i class="fas fa-user"></i>
-            </div>
-            <h2 class="mobile-username">{{ username }}</h2>
-            <!-- 账户身份铭牌：根据登录响应中的 demo 标识区分标准账户与演示账户。 -->
-            <span :class="['account-role-badge', { 'is-demo': isDemoAccount }]">
-              {{ accountRoleText }}
-            </span>
-          </div>
-
           <div class="chart-box desktop-only-setting" style="max-width: 600px;">
             <h4 style="margin-bottom: 15px;">
               <i class="fas fa-palette" style="color:var(--sys-blue); margin-right:8px;"></i>
@@ -230,20 +202,16 @@
                   <span>{{ opt.label }}</span>
                 </label>
               </div>
-              </div>
-              </div>
-
-          <!-- 桌面端演示账户配置区，普通账户可在设置页直接管理 -->
+            </div>
+          </div>
           <div class="chart-box desktop-only-setting demo-account-box" style="max-width: 600px;">
             <h4 style="margin-bottom: 15px;">
               <i class="fas fa-user-shield" style="color:var(--sys-blue); margin-right:8px;"></i>
               演示账户
             </h4>
-
             <div v-if="isDemoAccount" class="demo-account-notice">
               当前为演示账户，仅可浏览数据，不能管理演示账户。
             </div>
-
             <template v-else>
               <div class="settings-row demo-summary-row">
                 <div>
@@ -256,9 +224,7 @@
                   {{ demoAccount ? '已开启' : '未开启' }}
                 </span>
               </div>
-
               <div v-if="demoLoading" class="demo-loading">正在读取演示账户状态...</div>
-
               <form v-else-if="!demoAccount" class="demo-form" @submit.prevent="handleCreateDemoUser">
                 <div class="demo-form-row">
                   <label class="demo-field">
@@ -290,7 +256,6 @@
                   {{ demoSubmitting ? '开启中' : '开启演示账户' }}
                 </button>
               </form>
-
               <div v-else class="demo-manage-area">
                 <form class="demo-form" @submit.prevent="handleUpdateDemoPassword">
                   <label class="demo-field">
@@ -317,187 +282,56 @@
               </div>
             </template>
           </div>
-
-              <!-- 仅限移动设备，访问统计数据、关于和注销页面 -->
-              <div class="mobile-settings-entrances">
-              <div class="settings-row entrance-row" @click="handleTabChange({ key: 'stats', label: '数据统计' })">
-              <div class="entrance-left">
-                <i class="fas fa-chart-bar entrance-icon" style="color:var(--sys-blue);"></i>
-                <span class="settings-label">数据统计</span>
+        </div>
+        <div v-if="activeTab === 'about'" class="ios-section">
+          <div class="modal-scroll-content">
+            <div class="about-grid">
+              <div class="about-card">
+                <h3 class="about-card-title">
+                  <i class="fas fa-info-circle"></i>
+                  关于
+                </h3>
+                <p class="about-intro">
+                  {{ APP_CONFIG.appName }}
+                  是一款动漫追番记录管理工具，帮助用户追踪已看完、最喜欢和正在追的动漫作品。
+                  支持封面图片上传、分类筛选、数据数据统计等功能。
+                </p>
               </div>
-              <i class="fas fa-chevron-right entrance-arrow"></i>
-              </div>
-              <div class="settings-row entrance-row" @click="handleTabChange({ key: 'about', label: '关于应用' })">
-              <div class="entrance-left">
-                <i class="fas fa-info-circle entrance-icon" style="color:var(--sys-blue);"></i>
-                <span class="settings-label">关于应用</span>
-              </div>
-              <i class="fas fa-chevron-right entrance-arrow"></i>
-              </div>
-              <div
-                v-if="!isDemoAccount"
-                class="settings-row entrance-row"
-                @click="handleTabChange({ key: 'demo-user', label: '演示账户' })"
-              >
-              <div class="entrance-left">
-                <i class="fas fa-user-shield entrance-icon" style="color:var(--sys-blue);"></i>
-                <span class="settings-label">演示账户</span>
-              </div>
-              <i class="fas fa-chevron-right entrance-arrow"></i>
-              </div>
-              <div class="settings-row entrance-row destructive-row" @click="handleLogout">
-              <div class="entrance-left">
-                <i class="fas fa-sign-out-alt entrance-icon"></i>
-                <span class="settings-label">退出登录</span>
-              </div>
-              </div>
-              </div>
-              </div>
-
-        <!-- 关于页面 -->
-        <transition name="mobile-modal">
-          <div v-if="activeTab === 'about'" class="mobile-fullscreen-modal ios-section">
-            <div class="modal-topbar mobile-only">
-              <button class="modal-back-btn" @click="handleTabChange({ key: 'settings', label: '我的' })">
-                <i class="fas fa-arrow-left"></i>
-              </button>
-              <span class="modal-title">关于应用</span>
-            </div>
-            <div class="modal-scroll-content">
-              <div class="about-grid">
-                <!-- 关于 -->
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-info-circle"></i> 关于
-                  </h3>
-                  <p class="about-intro">
-                    {{ APP_CONFIG.appName }} 是一款动漫追番记录管理工具，帮助用户追踪已看完、最喜欢和正在追的动漫作品。
-                    支持封面图片上传、分类筛选、数据数据统计等功能。
-                  </p>
-                </div>
-
-                <!-- 项目信息 -->
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-clipboard-list"></i> 项目信息
-                  </h3>
-                  <table class="about-table">
+              <div class="about-card">
+                <h3 class="about-card-title">
+                  <i class="fas fa-clipboard-list"></i>
+                  项目信息
+                </h3>
+                <table class="about-table">
+                  <tbody>
                     <tr><td class="about-td-label">版本号</td><td>{{ APP_CONFIG.version }}</td></tr>
                     <tr><td class="about-td-label">发布时间</td><td>{{ APP_CONFIG.releaseDate }}</td></tr>
                     <tr><td class="about-td-label">技术栈</td><td>{{ APP_CONFIG.techStack }}</td></tr>
                     <tr><td class="about-td-label">运行环境</td><td>生产环境 (Production)</td></tr>
                     <tr><td class="about-td-label">开发者</td><td>{{ APP_CONFIG.author }}</td></tr>
                     <tr><td class="about-td-label">开源地址</td><td><a :href="APP_CONFIG.github" target="_blank" rel="noopener noreferrer">{{ APP_CONFIG.github }}</a></td></tr>
-                  </table>
-                </div>
-
-                <!-- 生产环境依赖 -->
-                <div class="about-card">
-                  <h3 class="about-card-title">
-                    <i class="fas fa-cubes"></i> 生产环境依赖
-                  </h3>
-                  <table class="about-table">
+                  </tbody>
+                </table>
+              </div>
+              <div class="about-card">
+                <h3 class="about-card-title">
+                  <i class="fas fa-cubes"></i>
+                  生产环境依赖
+                </h3>
+                <table class="about-table">
+                  <tbody>
                     <tr v-for="dep in deps" :key="dep.name">
                       <td class="about-td-label">{{ dep.name }}</td>
                       <td>{{ dep.version }}</td>
                     </tr>
-                  </table>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-        </transition>
-
-        <!-- 移动端演示账户二级配置页 -->
-        <transition name="mobile-modal">
-          <div v-if="activeTab === 'demo-user'" class="mobile-fullscreen-modal ios-section">
-            <div class="modal-topbar mobile-only">
-              <button class="modal-back-btn" @click="handleTabChange({ key: 'settings', label: '我的' })">
-                <i class="fas fa-arrow-left"></i>
-              </button>
-              <span class="modal-title">演示账户</span>
-            </div>
-            <div class="modal-scroll-content">
-              <div class="demo-mobile-card">
-                <div class="demo-mobile-head">
-                  <i class="fas fa-user-shield"></i>
-                  <div>
-                    <h3>演示账户配置</h3>
-                    <p>用于给访客临时体验系统，只允许查看数据。</p>
-                  </div>
-                </div>
-
-                <div v-if="demoLoading" class="demo-loading">正在读取演示账户状态...</div>
-
-                <template v-else>
-                  <div class="demo-mobile-status">
-                    <span>当前状态</span>
-                    <strong>{{ demoAccount ? `已开启：${demoAccount.username}` : '未开启' }}</strong>
-                  </div>
-
-                  <form v-if="!demoAccount" class="demo-form" @submit.prevent="handleCreateDemoUser">
-                    <label class="demo-field">
-                      <span>演示用户名</span>
-                      <input
-                        v-model="demoCreateForm.username"
-                        type="text"
-                        maxlength="10"
-                        autocomplete="username"
-                        :disabled="demoSubmitting"
-                        placeholder="最多 10 个字符"
-                      />
-                    </label>
-                    <label class="demo-field">
-                      <span>演示密码</span>
-                      <input
-                        v-model="demoCreateForm.password"
-                        type="password"
-                        minlength="6"
-                        maxlength="72"
-                        autocomplete="new-password"
-                        :disabled="demoSubmitting"
-                        placeholder="6-72 个字符"
-                      />
-                    </label>
-                    <button type="submit" class="demo-primary-btn" :disabled="demoSubmitting">
-                      <i :class="['fas', demoSubmitting ? 'fa-spinner fa-spin' : 'fa-toggle-on']"></i>
-                      {{ demoSubmitting ? '开启中' : '开启演示账户' }}
-                    </button>
-                  </form>
-
-                  <div v-else class="demo-manage-area">
-                    <form class="demo-form" @submit.prevent="handleUpdateDemoPassword">
-                      <label class="demo-field">
-                        <span>新演示密码</span>
-                        <input
-                          v-model="demoPasswordForm.password"
-                          type="password"
-                          minlength="6"
-                          maxlength="72"
-                          autocomplete="new-password"
-                          :disabled="demoPasswordSubmitting"
-                          placeholder="输入新密码"
-                        />
-                      </label>
-                      <button type="submit" class="demo-primary-btn" :disabled="demoPasswordSubmitting">
-                        <i :class="['fas', demoPasswordSubmitting ? 'fa-spinner fa-spin' : 'fa-key']"></i>
-                        {{ demoPasswordSubmitting ? '修改中' : '修改密码' }}
-                      </button>
-                    </form>
-                    <button class="demo-danger-btn" :disabled="demoDeleting" @click="handleDeleteDemoUser">
-                      <i :class="['fas', demoDeleting ? 'fa-spinner fa-spin' : 'fa-trash']"></i>
-                      {{ demoDeleting ? '删除中' : '删除演示账户' }}
-                    </button>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </transition>
+        </div>
       </div>
     </main>
-
-    <!-- 动漫详情弹窗 -->
     <AnimeModal
       :visible="detailVisible"
       :anime="currentAnime"
@@ -505,27 +339,18 @@
       :source-img="sourceImg"
       @close="detailVisible = false"
     />
-
-    <!--
-      移动端底部导航栏：
-      iOS WebView/Safari 对 fixed + backdrop-filter 的层叠上下文存在穿透风险，
-      进入二级全屏页时直接卸载底部栏，避免三岛菜单残留在页面上方。
-    -->
-    <AppBottomBar
-      v-if="shouldShowBottomBar"
-      :active-tab="activeTab"
-      @tab-change="handleTabChange"
+    <AnimeTimelineMode
+      v-if="timelineModeVisible"
+      @close="closeTimelineMode"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
-import { animate, cubicBezier } from 'animejs';
 import AppSidebar from '@/components/layout/AppSidebar.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
-import AppBottomBar from '@/components/layout/AppBottomBar.vue';
 import AnimeCard from '@/components/common/AnimeCard.vue';
 import AnimeModal from '@/components/common/AnimeModal.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
@@ -534,6 +359,7 @@ import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
 import { APP_CONFIG } from '@/utils/constants';
 import { useNotify } from '@/composables/useNotify';
+const timelineBgUrl = '/img/bg2.png';
 
 /** 动态导入echarts以减小主chunk体积 */
 let echartsModule = null;
@@ -552,22 +378,22 @@ const router = useRouter();
 const appStore = useAppStore();
 const authStore = useAuthStore();
 const { message, confirm } = useNotify();
+const AnimeTimelineMode = defineAsyncComponent(() => import('@/components/stats/AnimeTimelineMode.vue'));
 
-const username = computed(() => authStore.username);
 const isDemoAccount = computed(() => authStore.isDemo);
-const accountRoleText = computed(() => (isDemoAccount.value ? '演示账户' : '标准账户/管理员'));
 
 const activeTab = ref('finished');
 const loading = ref(false);
 const pageTitle = ref('已看完');
 const detailVisible = ref(false);
+const timelineModeVisible = ref(false);
 const currentAnime = ref(null);
 const sourceRect = ref(null);
 const sourceImg = ref(null);
 const currentYear = new Date().getFullYear();
-
-/** 移动端二级全屏页集合，这些页面拥有自己的返回按钮，不应保留底部三岛菜单。 */
-const MOBILE_FULLSCREEN_TABS = new Set(['about', 'demo-user']);
+const timelineEntryStyle = computed(() => ({
+  backgroundImage: `linear-gradient(90deg, rgba(6, 12, 16, 0.92), rgba(6, 12, 16, 0.52) 58%, rgba(6, 12, 16, 0.22)), url(${timelineBgUrl})`
+}));
 
 /** 统计数值展示上限，避免异常接口数据撑爆页面布局 */
 const MAX_STAT_VALUE = 999999;
@@ -656,37 +482,6 @@ const demoCreateForm = reactive({
 const demoPasswordForm = reactive({
   password: ''
 });
-
-/** 退出登录逻辑（专为移动端使用） */
-async function handleLogout() {
-  const isConfirm = await confirm({ content: '确定要退出登录吗？' });
-  if (!isConfirm) return;
-
-  const overlay = document.createElement('div');
-  Object.assign(overlay.style, {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '100vw',
-    height: '100vh',
-    background: '#fff',
-    zIndex: '99999',
-    opacity: '0'
-  });
-  document.body.appendChild(overlay);
-
-  const ease = cubicBezier(0.4, 0, 0.2, 1);
-
-  animate(overlay, {
-    opacity: [0, 1],
-    duration: 350,
-    ease,
-    onComplete: () => {
-      authStore.logout();
-      router.push('/login');
-    }
-  });
-}
 
 /**
  * @function extractApiMessage
@@ -908,18 +703,6 @@ const cachedData = reactive({
   stats: null
 });
 
-/**
- * 当前是否处于移动端二级全屏页。
- * 统计页只有在数据缓存就绪并真正渲染全屏面板时才隐藏底部栏，加载失败时保留导航恢复路径。
- */
-const isMobileFullscreenPage = computed(() =>
-  MOBILE_FULLSCREEN_TABS.has(activeTab.value)
-  || (activeTab.value === 'stats' && !!cachedData.stats)
-);
-
-/** 底部三岛菜单渲染开关，详情页和二级全屏页都不保留底部栏。 */
-const shouldShowBottomBar = computed(() => !detailVisible.value && !isMobileFullscreenPage.value);
-
 /** 统计页展示摘要，统一从已清洗缓存中派生，避免模板层重复计算 */
 const statsSummary = computed(() => {
   const stats = cachedData.stats || {};
@@ -978,15 +761,6 @@ const statsMetricCards = computed(() => [
 ]);
 
 /**
- * @function isMobileViewport
- * @description 判断当前是否处于移动端布局断点，用于区分“我的”和桌面“设置”的数据请求策略。
- * @returns {boolean} 是否为移动端视口
- */
-function isMobileViewport() {
-  return window.innerWidth <= 768;
-}
-
-/**
  * 处理Tab切换
  */
 function handleTabChange(item) {
@@ -997,7 +771,7 @@ function handleTabChange(item) {
   const main = document.querySelector('.app-main');
   if (main) main.scrollTop = 0;
 
-  if (item.key === 'demo-user' || (item.key === 'settings' && !isMobileViewport())) {
+  if (item.key === 'settings') {
     loadDemoAccount(true);
   }
 
@@ -1118,7 +892,6 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
   }
 
   const chart = echarts.init(dom);
-  const isMobile = window.innerWidth <= 768;
 
   const option = {
     tooltip: {
@@ -1132,8 +905,8 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
     },
     grid: {
       top: 26,
-      left: isMobile ? 6 : 10,
-      right: isMobile ? 6 : 10,
+      left: 10,
+      right: 10,
       bottom: 6,
       containLabel: true
     },
@@ -1144,7 +917,7 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
       axisTick: { show: false },
       axisLabel: {
         color: '#5e6472',
-        fontSize: isMobile ? 10 : 12,
+        fontSize: 12,
         interval: 0
       }
     },
@@ -1156,14 +929,14 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
       },
       axisLabel: {
         color: '#5e6472',
-        fontSize: isMobile ? 10 : 12
+        fontSize: 12
       }
     },
     series: [
       {
         data: values,
         type: 'bar',
-        barWidth: isMobile ? 14 : 18,
+        barWidth: 18,
         barMaxWidth: 22,
         itemStyle: {
           borderRadius: [8, 8, 4, 4],
@@ -1200,6 +973,14 @@ function openDetail(payload) {
   detailVisible.value = true;
 }
 
+function openTimelineMode() {
+  timelineModeVisible.value = true;
+}
+
+function closeTimelineMode() {
+  timelineModeVisible.value = false;
+}
+
 /**
  * 处理主题切换
  */
@@ -1215,11 +996,6 @@ function handleThemeChange(theme) {
 
 // 初始化背景主题
 onMounted(() => {
-  // 移动端强制默认使用纯白背景
-  if (window.innerWidth <= 768) {
-    appStore.setBgTheme('solid');
-  }
-
   if (appStore.bgTheme === 'solid') {
     document.body.classList.add('theme-solid-color');
   }
@@ -1269,7 +1045,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   position: relative;
   overflow-y: auto;
-  overflow-x: hidden; /* 绝对禁止横向滑动 */
+  overflow-x: hidden;
+
+  /* 绝对禁止横向滑动 */
   -webkit-overflow-scrolling: touch;
   width: 100%;
 }
@@ -1295,7 +1073,9 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: 12px;
   width: 100%;
-  overflow: hidden; /* 防止标题过长撑开容器 */
+  overflow: hidden;
+
+  /* 防止标题过长撑开容器 */
 }
 
 .ios-section-sub {
@@ -1320,23 +1100,12 @@ onBeforeUnmount(() => {
   gap: 30px 20px;
 }
 
-@media (max-width: 768px) {
-  .anime-grid {
-    /* 使用 minmax(0, 1fr) 强制平分空间，防止内容撑开列宽 */
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px 12px !important;
-    width: 100%;
-    margin: 0 auto;
-  }
-}
-
 .empty-text {
   text-align: center;
   color: var(--sys-text-secondary);
   margin-top: 50px;
 }
 
-/* 数据统计：移动端与 PC 端共用同一套信息结构，避免双端字段不一致。 */
 .stats-dashboard-page {
   width: 100%;
 }
@@ -1720,7 +1489,91 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+.stats-timeline-entry {
+  position: relative;
+  width: 100%;
+  min-height: 156px;
+  margin-top: 24px;
+  padding: 28px 30px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 24px;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  text-align: left;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.stats-timeline-entry::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 82% 22%, rgba(215, 251, 255, 0.24), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 44%);
+  pointer-events: none;
+}
+
+.stats-timeline-entry:hover,
+.stats-timeline-entry:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(215, 251, 255, 0.42);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.18);
+  outline: none;
+}
+
+.timeline-entry-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.timeline-entry-kicker {
+  color: rgba(215, 251, 255, 0.78);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.timeline-entry-copy strong {
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.timeline-entry-copy small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.timeline-entry-action {
+  position: relative;
+  z-index: 1;
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(12px);
+}
+
 /* 设置页复用卡片样式，保留旧类名以兼容现有设置与演示账户模块。 */
+
 .chart-box {
   background: rgba(255, 255, 255, 0.55);
   border-radius: 24px;
@@ -1742,6 +1595,7 @@ onBeforeUnmount(() => {
 }
 
 /* 设置页 */
+
 .settings-row {
   display: flex;
   justify-content: space-between;
@@ -1795,6 +1649,7 @@ onBeforeUnmount(() => {
 }
 
 /* 演示账户设置 */
+
 .demo-account-box {
   margin-top: 24px;
 }
@@ -1930,65 +1785,8 @@ onBeforeUnmount(() => {
   margin-top: 18px;
 }
 
-.demo-mobile-card {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 22px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-}
-
-.demo-mobile-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.demo-mobile-head > i {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: rgba(0, 122, 255, 0.1);
-  color: var(--sys-blue);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.demo-mobile-head h3 {
-  margin: 0 0 6px;
-  font-size: 17px;
-  color: var(--sys-text-primary);
-}
-
-.demo-mobile-head p {
-  margin: 0;
-  color: var(--sys-text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.demo-mobile-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  color: var(--sys-text-secondary);
-  font-size: 14px;
-}
-
-.demo-mobile-status strong {
-  color: var(--sys-text-primary);
-  text-align: right;
-  word-break: break-word;
-}
-
 /* 关于页 */
+
 .about-grid {
   display: flex;
   flex-direction: column;
@@ -2059,448 +1857,5 @@ onBeforeUnmount(() => {
 .about-table a {
   color: var(--sys-blue);
   text-decoration: none;
-}
-
-/* 仅针对移动端的设计调整 */
-.mobile-settings-entrances {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  /* 调整主内容区的底部间距，为 AppBottomBar 预留空间 */
-  .content-section {
-    padding: 0 20px calc(80px + env(safe-area-inset-bottom)) !important;
-  }
-  
-  /* 移动端隐藏外观设置 */
-  .desktop-only-setting {
-    display: none !important;
-  }
-  
-  /* 移动端设置项独立入口容器 */
-  .mobile-settings-entrances {
-    display: flex;
-    flex-direction: column;
-    margin-top: 30px;
-    gap: 15px;
-  }
-  
-  /* 移动端：我的（用户主页头像与昵称） */
-  .mobile-user-profile {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 0 10px;
-  }
-  
-  .mobile-avatar {
-    width: 86px;
-    height: 86px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #e0eafc, #cfdef3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--sys-blue);
-    font-size: 38px;
-    border: 3px solid #fff;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-    margin-bottom: 16px;
-  }
-  
-  .mobile-username {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--sys-text-primary);
-    margin: 0;
-  }
-
-  .account-role-badge {
-    margin-top: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 28px;
-    padding: 0 12px;
-    border-radius: 999px;
-    color: #0f7a3a;
-    background: rgba(52, 199, 89, 0.14);
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-  }
-
-  .account-role-badge.is-demo {
-    color: #9a5a00;
-    background: rgba(255, 149, 0, 0.16);
-  }
-  
-  .entrance-row {
-    background: rgba(255, 255, 255, 0.4);
-    border-radius: 16px;
-    padding: 16px 20px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-top: none; /* 移除普通 setting-row 的上边框 */
-  }
-  
-  .entrance-row:active {
-    transform: scale(0.98);
-    background: rgba(255, 255, 255, 0.7);
-  }
-
-  .entrance-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .entrance-icon {
-    font-size: 18px;
-    width: 24px;
-    text-align: center;
-  }
-  
-  .entrance-arrow {
-    color: var(--sys-text-secondary);
-    font-size: 14px;
-    opacity: 0.5;
-  }
-  
-  .destructive-row {
-    margin-top: 10px;
-  }
-  
-  .destructive-row .entrance-icon,
-  .destructive-row .settings-label {
-    color: #ff3b30 !important;
-  }
-  
-  /* 移动端全屏弹窗基础样式 (Stats & About) */
-  .mobile-fullscreen-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: #f5f5f7; /* 灰色背景 */
-    z-index: 3000; /* 高于 AppBottomBar */
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 0 !important;
-  }
-  
-  .modal-topbar {
-    display: flex;
-    align-items: center;
-    /* 与主 Header 保持一致的加倍间距与高度 */
-    padding: max(20px, calc(env(safe-area-inset-top) + 10px)) 20px 20px;
-    min-height: 88px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    z-index: 10;
-    flex-shrink: 0;
-    justify-content: center;
-    position: relative;
-  }
-  
-  .modal-back-btn {
-    position: absolute;
-    left: 20px;
-    bottom: 19px; /* 根据50px按钮高度做垂直居中微调 */
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.05);
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--sys-blue);
-    font-size: 24px;
-    cursor: pointer;
-  }
-  
-  .modal-title {
-    font-size: 24px; /* 与主 Header 保持一致的字号 */
-    font-weight: 700;
-    color: var(--sys-text-primary);
-  }
-  
-  .modal-scroll-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    padding-bottom: max(30px, env(safe-area-inset-bottom));
-  }
-  
-  /* 移动端全屏弹窗滑入/滑出动画 */
-  .mobile-modal-enter-active,
-  .mobile-modal-leave-active {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-  .mobile-modal-enter-from,
-  .mobile-modal-leave-to {
-    transform: translateY(100%) !important;
-  }
-  
-  /* 移动端数据统计页：独立收窄容器，去除右上角年份选择入口。 */
-  .mobile-fullscreen-modal.stats-dashboard-page {
-    align-items: center;
-    background: #f8fbff;
-  }
-
-  .stats-dashboard-shell {
-    width: min(calc(100vw - 32px), 420px);
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .stats-dashboard-header {
-    justify-content: center;
-    flex-shrink: 0;
-    min-height: 116px;
-    padding: max(24px, calc(env(safe-area-inset-top) + 14px)) 0 18px;
-  }
-
-  .stats-title-group {
-    text-align: center;
-  }
-
-  .stats-back-btn {
-    position: absolute;
-    left: 0;
-    bottom: 16px;
-    width: 54px;
-    height: 54px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.92);
-    color: #2563eb;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    cursor: pointer;
-  }
-
-  .stats-title-group h2 {
-    font-size: 30px;
-  }
-
-  .stats-title-group p {
-    font-size: 14px;
-  }
-
-  .stats-dashboard-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 0 max(34px, env(safe-area-inset-bottom));
-  }
-
-  .stats-overview-grid,
-  .stats-chart-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-overview-grid {
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .stats-total-card {
-    min-height: 154px;
-    padding: 22px;
-    border-radius: 20px;
-  }
-
-  .stats-total-card::before {
-    width: 154px;
-    height: 154px;
-    right: -32px;
-    bottom: -44px;
-  }
-
-  .stats-total-card::after {
-    right: 18px;
-    bottom: 16px;
-    font-size: 30px;
-  }
-
-  .stats-card-label {
-    font-size: 20px;
-  }
-
-  .stats-total-value {
-    margin: 14px 0 18px;
-  }
-
-  .stats-total-value strong {
-    font-size: 56px;
-  }
-
-  .stats-total-value span {
-    padding-bottom: 5px;
-    font-size: 18px;
-  }
-
-  .stats-total-note {
-    min-height: 30px;
-    padding: 0 12px;
-    font-size: 12px;
-  }
-
-  .stats-mini-grid {
-    gap: 8px;
-  }
-
-  .stats-mini-card {
-    min-height: 132px;
-    padding: 14px 8px 12px;
-    border-radius: 18px;
-  }
-
-  .stats-icon-badge {
-    width: 38px;
-    height: 38px;
-    margin-bottom: 9px;
-    border-radius: 12px;
-    font-size: 18px;
-  }
-
-  .stats-mini-label {
-    font-size: 13px;
-  }
-
-  .stats-mini-card strong {
-    margin-top: 8px;
-    font-size: 25px;
-  }
-
-  .stats-mini-card small {
-    font-size: 12px;
-  }
-
-  .stats-mini-card p {
-    margin-top: 9px;
-    font-size: 11px;
-  }
-
-  .stats-chart-grid {
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-
-  .stats-chart-card {
-    padding: 18px 14px 12px;
-    border-radius: 20px;
-  }
-
-  .stats-card-heading {
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-
-  .stats-card-heading h3,
-  .stats-report-card h3 {
-    font-size: 18px;
-  }
-
-  .stats-card-heading i,
-  .stats-report-card h3 i {
-    margin-right: 8px;
-  }
-
-  .stats-chart-pill {
-    min-height: 28px;
-    padding: 0 12px;
-    font-size: 12px;
-  }
-
-  .stats-chart-desc {
-    font-size: 13px;
-  }
-
-  .stats-chart-area {
-    height: 194px;
-  }
-
-  .stats-report-card {
-    min-height: 188px;
-    padding: 22px 18px;
-    border-radius: 20px;
-  }
-
-  .stats-report-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 22px;
-  }
-
-  .stats-report-item {
-    grid-template-columns: 1fr;
-    row-gap: 8px;
-    justify-items: start;
-  }
-
-  .report-icon {
-    grid-row: auto;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    font-size: 18px;
-  }
-
-  .stats-report-item p {
-    font-size: 12px;
-    line-height: 1.35;
-  }
-
-  .stats-report-item strong {
-    font-size: 23px;
-  }
-
-  .stats-report-item small {
-    font-size: 12px;
-  }
-
-  .stats-report-art {
-    width: 180px;
-    height: 142px;
-    right: -54px;
-    bottom: -26px;
-    opacity: 0.1;
-  }
-
-  .demo-form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .demo-field input,
-  .demo-primary-btn,
-  .demo-danger-btn {
-    height: 44px;
-    border-radius: 12px;
-  }
-
-  .demo-form {
-    margin-top: 16px;
-  }
-
-  .mobile-only {
-    display: flex !important;
-  }
-}
-
-@media (min-width: 769px) {
-  .mobile-only {
-    display: none !important;
-  }
 }
 </style>
