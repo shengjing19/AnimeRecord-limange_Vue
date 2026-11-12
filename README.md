@@ -12,7 +12,7 @@
 
 ## 项目概览
 
-`limange_Vue` 是 limange 动漫记录程序的桌面端前端项目，采用 Vue 单页应用与侧边栏导航。移动端已剥离为 [limange-mobile](limange-mobile/README.md) 独立项目，可单独复制、安装依赖、构建和部署。
+`limange_Vue` 是 limange 动漫记录程序的桌面端前端项目，采用 Vue 单页应用与侧边栏导航。移动端已剥离。
 <br>Tips:后端项目详见主页Newlimange
 
 ## 界面预览(PC端)
@@ -73,7 +73,6 @@ limange_Vue/
 ├── index.html                       # Vite 入口 HTML
 ├── package.json                     # 项目依赖与脚本
 ├── vite.config.js                   # 桌面端 Vite 与 PostCSS 配置
-├── limange-mobile/                  # 独立移动端工程（见该目录的 README）
 ├── public/
 │   ├── img/                         # 静态图片与动漫背景图
 │   └── fontawesome6.4.0/            # 本地图标资源
