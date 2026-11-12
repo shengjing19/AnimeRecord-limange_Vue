@@ -2,6 +2,14 @@
   <img src="./logo.png" alt="limange Logo" width="180" />
 </p>
 
+## 桌面工作台 v1.1
+
+新增漫画风格工作区、顶部标签、右侧内嵌数据管理、双登录样式和独立 EXE。详见 [桌面使用、构建与性能报告](docs/desktop-workspace.md)。
+
+- 便携版：`release/limange-1.1.0-portable.exe`，双击即可打开。
+- 安装版：`release/limange-1.1.0-setup.exe`。
+- 构建：`npm run desktop:build`。程序包含前端运行时，仍需连接已有 Newlimange 后端。
+
 ## 项目概览
 
 `limange_Vue` 是 limange 动漫记录程序的桌面端前端项目，采用 Vue 单页应用与侧边栏导航。移动端已剥离为 [limange-mobile](limange-mobile/README.md) 独立项目，可单独复制、安装依赖、构建和部署。
@@ -45,17 +53,17 @@
 
 ## 技术栈
 
-| 类型 | 技术 |
-| --- | --- |
-| 核心框架 | Vue 3 |
-| 构建工具 | Vite 5 |
-| 路由 | Vue Router 4 |
-| 状态管理 | Pinia |
-| HTTP 客户端 | Axios |
-| 图表 | ECharts |
-| 动画 | animejs |
-| 样式单位 | postcss-pxtorem，桌面端根字号固定为 16px |
-| 图标 | Font Awesome 6.4.0 |
+| 类型        | 技术                                     |
+| ----------- | ---------------------------------------- |
+| 核心框架    | Vue 3                                    |
+| 构建工具    | Vite 5                                   |
+| 路由        | Vue Router 4                             |
+| 状态管理    | Pinia                                    |
+| HTTP 客户端 | Axios                                    |
+| 图表        | ECharts                                  |
+| 动画        | animejs                                  |
+| 样式单位    | postcss-pxtorem，桌面端根字号固定为 16px |
+| 图标        | Font Awesome 6.4.0                       |
 
 ## 项目结构
 
@@ -82,20 +90,13 @@ limange_Vue/
 
 ## 后端接口配置
 
-当前前端 API 地址配置在：
+在登录页的「服务器设置」或应用「设置」中填写后端地址，无需修改源码或重新打包。浏览器与桌面的出厂默认值统一位于 `shared/defaults.json`。
 
-```text
-src/utils/constants.js
+```json
+{ "serverUrl": "http://192.168.30.12:8231" }
 ```
 
-配置示例（实际值以文件为准）：
-
-```js
-export const API_BASE_URL = 'http://127.0.0.1:8231/api';
-export const RESOURCE_BASE_URL = 'http://127.0.0.1:8231/';
-```
-
-如后端部署地址发生变化，请同步修改上述配置。
+填写服务根地址，不需要追加 `/api`。桌面版通过主进程同源代理访问 API 和服务器图片；Web 部署仍需后端正确配置 CORS。
 
 ## 主要接口能力
 
@@ -189,4 +190,5 @@ npm run preview
 - 不建议在组件中直接拼接后端完整 URL，应优先通过 API 封装调用。
 
 ## 许可证
+
 [GPL-3.0 License](https://github.com/shengjing19/AnimeRecord-limange_Vue/blob/master/LICENSE)

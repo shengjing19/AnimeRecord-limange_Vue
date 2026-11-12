@@ -11,6 +11,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import '@/assets/styles/global.css';
+import '@/assets/styles/desktop.css';
 
 const app = createApp(App);
 
@@ -19,4 +20,12 @@ document.documentElement.dataset.client = 'desktop';
 app.use(createPinia());
 app.use(router);
 
-app.mount('#app');
+// 桌面配置由主进程持久化，在发出第一个 API 请求前同步到渲染层。
+async function bootstrap() {
+  if (window.limangeDesktop) {
+    localStorage.setItem('app_server_url', await window.limangeDesktop.getServerUrl());
+  }
+  app.mount('#app');
+}
+
+bootstrap();

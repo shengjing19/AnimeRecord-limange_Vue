@@ -1,106 +1,72 @@
 <template>
-  <!--
-    AppHeader.vue - 顶部导航头组件
-    粘性定位，滚动时自动隐藏，提升沉浸式体验
-    by shengjing19(Hisx12123)
-    created 2026-05-31
-  -->
-  <header :class="['app-header', { hidden: isHidden }]">
-    <div class="header-blur-bg"></div>
-    <div class="header-content">
-      <div class="title-group">
-        <h1 class="page-title">{{ title }}</h1>
-      </div>
+  <header class="app-header">
+    <div>
+      <div class="page-eyebrow">MY ANIME COLLECTION <span> / </span> {{ title }}</div>
+      <h1>{{ title }}<span class="title-dot">.</span></h1>
+      <p>{{ description }}</p>
+    </div>
+    <div class="header-actions">
+      <span v-if="count != null" class="record-count"
+        ><strong>{{ count }}</strong> 部作品</span
+      ><button class="subtle-button" :disabled="loading" @click="$emit('refresh')">
+        <i :class="['fa-solid fa-rotate-right', { 'fa-spin': loading }]" aria-hidden="true"></i>
+        刷新
+      </button>
     </div>
   </header>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-
-defineProps({
-  /** 页面标题 */
-  title: { type: String, default: 'limange' }
-});
-
-const isHidden = ref(false);
-let scrollContainer = null;
-
-
-onMounted(() => {
-  scrollContainer = document.querySelector('.app-main');
-  if (scrollContainer) {
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-  }
-});
-
-onBeforeUnmount(() => {
-  if (scrollContainer) {
-    scrollContainer.removeEventListener('scroll', handleScroll);
-  }
-});
-
-/**
- * 滚动监听：距离顶部大于80px时隐藏头部
- * 使用 requestAnimationFrame 实现性能节流
- */
-let isScrolling = false;
-
-function handleScroll() {
-  if (!isScrolling) {
-    window.requestAnimationFrame(() => {
-      if (scrollContainer) {
-        isHidden.value = scrollContainer.scrollTop > 80;
-      }
-      isScrolling = false;
-    });
-    isScrolling = true;
-  }
-}
+defineProps({ title: String, description: String, count: Number, loading: Boolean });
+defineEmits(['refresh']);
 </script>
 
 <style scoped>
 .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 90;
-  padding: 30px 50px;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  transition: 0.4s;
-}
-
-.app-header.hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-}
-
-.header-blur-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  z-index: -1;
-}
-
-.header-content {
-  width: 100%;
-  display: flex;
   justify-content: space-between;
-  align-items: center;
+  gap: 20px;
+  padding: 27px 32px 25px;
 }
-
-.page-title {
-  font-size: 36px;
-  font-weight: 800;
+.page-eyebrow {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #8992a1;
+}
+.page-eyebrow span {
+  padding: 0 10px;
+  color: #b6c0cc;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 650;
   letter-spacing: -1px;
-  color: var(--sys-text-primary);
-  transition: all 0.3s ease;
+  margin: 9px 0 7px;
+}
+.title-dot {
+  color: #2386e5;
+  margin-left: 3px;
+}
+p {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.record-count {
+  font-size: 10px;
+  color: var(--muted);
+}
+.record-count strong {
+  font-size: 20px;
+  font-weight: 500;
+  margin-right: 4px;
+  color: var(--ink);
 }
 </style>

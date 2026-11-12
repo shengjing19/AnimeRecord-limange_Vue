@@ -1,38 +1,40 @@
 <template>
   <div class="spa-layout">
-    <aside class="side-nav">
-      <div class="logo-centered-container">
-        <div class="logo-brand-row">
-          <span class="logo-text">limange DM</span>
-        </div>
-        <p class="logo-subtitle">数据管理中心</p>
+    <header class="management-header">
+      <div>
+        <span>COLLECTION MANAGEMENT</span>
+        <h1>数据管理<span>.</span></h1>
+        <p>整理、添加和更新你的动漫档案。</p>
       </div>
-      <div
+      <button class="subtle-button" :disabled="listLoading" @click="refresh">
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 刷新
+      </button>
+    </header>
+    <nav class="management-tabs" aria-label="管理分类">
+      <button
         v-for="nav in navItems"
         :key="nav.key"
-        :class="['nav-item', { active: currentView === nav.key }]"
+        :class="{ active: currentView === nav.key }"
+        :aria-current="currentView === nav.key ? 'page' : undefined"
         @click="switchNav(nav.key)"
       >
-        <i :class="nav.icon"></i>
-        <span>{{ nav.label }}</span>
-      </div>
-      <div class="nav-divider"></div>
-      <div class="nav-info">
-        <h3>{{ APP_CONFIG.appName }}&trade;</h3>
-        <span>软件版本 {{ APP_CONFIG.version }}</span>
-      </div>
-    </aside>
-    <main class="main-viewport">
-      <button class="back-home-btn desktop-only" @click="router.push('/')">
-        <i class="fa-solid fa-arrow-left"></i>
-        返回主页
+        <i :class="nav.icon" aria-hidden="true"></i>{{ nav.label }}
       </button>
+    </nav>
+    <main class="main-viewport">
       <section v-show="currentView !== 'add'" class="sub-view">
         <div class="order-container">
           <div class="results-top-bar desktop-only">
             <h2 class="page-title">{{ viewTitle }}</h2>
           </div>
-          <div class="table-wrapper custom-scrollbar desktop-only">
+          <div
+            class="table-wrapper custom-scrollbar desktop-only"
+            data-cover-scroll-root
+            :aria-busy="listLoading"
+          >
+            <p v-if="listError" class="list-error" role="alert">
+              {{ listError }} <button class="subtle-button" @click="refresh">重试</button>
+            </p>
             <table class="modern-table">
               <thead>
                 <tr>
@@ -46,12 +48,21 @@
               </thead>
               <tbody>
                 <tr v-if="animeList.length === 0">
-                  <td colspan="6" class="empty-cell">暂无数据</td>
+                  <td colspan="6" class="empty-cell">
+                    {{
+                      listLoading
+                        ? '正在加载…'
+                        : listError
+                          ? '暂时无法读取数据'
+                          : '这里还没有动漫记录'
+                    }}
+                  </td>
                 </tr>
                 <tr v-for="anime in animeList" :key="anime.id">
                   <td>
                     <img
-                      :src="getFullImageUrl(anime.coverImage)"
+                      v-lazy-cover="getCoverImageUrl(anime.coverImage)"
+                      decoding="async"
                       class="anime-cover-thumb"
                       :alt="anime.title"
                     />
@@ -69,7 +80,11 @@
                       <i class="fa-solid fa-pen-to-square"></i>
                       编辑
                     </button>
-                    <button v-if="!isDemoAccount" class="btn-delete" @click="handleDelete(anime.id)">
+                    <button
+                      v-if="!isDemoAccount"
+                      class="btn-delete"
+                      @click="handleDelete(anime.id)"
+                    >
                       <i class="fa-solid fa-trash"></i>
                       删除
                     </button>
@@ -114,10 +129,27 @@
                 </div>
                 <transition name="fade-down">
                   <div v-if="searchResults !== null" class="search-results-dropdown">
-                    <div v-if="searchResults.length > 0" class="result-list custom-scrollbar">
-                      <div v-for="(item, index) in searchResults" :key="index" class="result-item" @click="handleSelectTmdb(item)">
-                        <img v-if="item.coverImage" :src="item.coverImage" class="result-cover" />
-                        <div v-else class="result-cover fallback-cover"><i class="fa-solid fa-image"></i></div>
+                    <div
+                      v-if="searchResults.length > 0"
+                      class="result-list custom-scrollbar"
+                      data-cover-scroll-root
+                    >
+                      <div
+                        v-for="(item, index) in searchResults"
+                        :key="index"
+                        class="result-item"
+                        @click="handleSelectTmdb(item)"
+                      >
+                        <img
+                          v-if="item.coverImage"
+                          v-lazy-cover="getCoverImageUrl(item.coverImage)"
+                          decoding="async"
+                          :alt="item.title"
+                          class="result-cover"
+                        />
+                        <div v-else class="result-cover fallback-cover">
+                          <i class="fa-solid fa-image"></i>
+                        </div>
                         <div class="result-info">
                           <h4 class="result-title">{{ item.title }}</h4>
                           <p class="result-desc">{{ item.description || '暂无简介' }}</p>
@@ -145,9 +177,7 @@
       </section>
     </main>
     <Teleport to="body">
-      <div
-        :class="['modal-backdrop', { show: showAddModal }]"
-      >
+      <div :class="['modal-backdrop', { show: showAddModal }]">
         <div class="custom-modal">
           <div class="modal-header">
             <div>
@@ -166,21 +196,11 @@
               <div class="form-row">
                 <div class="form-group flex-1">
                   <label class="form-label">总集数</label>
-                  <input
-                    v-model="addForm.episodes"
-                    type="number"
-                    class="form-input"
-                    required
-                  />
+                  <input v-model="addForm.episodes" type="number" class="form-input" required />
                 </div>
                 <div class="form-group flex-1">
                   <label class="form-label">看完/记录日期</label>
-                  <input
-                    v-model="addForm.finishDate"
-                    type="date"
-                    class="form-input"
-                    required
-                  />
+                  <input v-model="addForm.finishDate" type="date" class="form-input" required />
                 </div>
               </div>
               <div class="form-group">
@@ -220,12 +240,7 @@
                   @change="handleAddFileChange"
                 />
                 <div class="preview-box">
-                  <img
-                    v-if="addPreviewUrl"
-                    :src="addPreviewUrl"
-                    class="preview-img"
-                    alt="预览"
-                  />
+                  <img v-if="addPreviewUrl" :src="addPreviewUrl" class="preview-img" alt="预览" />
                 </div>
               </div>
             </form>
@@ -238,9 +253,7 @@
       </div>
     </Teleport>
     <Teleport to="body">
-      <div
-        :class="['modal-backdrop', { show: showEditModal }]"
-      >
+      <div :class="['modal-backdrop', { show: showEditModal }]">
         <div class="custom-modal">
           <div class="modal-header">
             <div>
@@ -286,12 +299,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">描述/备注</label>
-                <textarea
-                  v-model="editForm.description"
-                  class="form-input"
-                  rows="3"
-                >
-                </textarea>
+                <textarea v-model="editForm.description" class="form-input" rows="3"> </textarea>
               </div>
               <div class="form-group">
                 <label class="form-label">封面图片</label>
@@ -307,12 +315,7 @@
                   @change="handleEditFileChange"
                 />
                 <div class="preview-box">
-                  <img
-                    v-if="editPreviewUrl"
-                    :src="editPreviewUrl"
-                    class="preview-img"
-                    alt="预览"
-                  />
+                  <img v-if="editPreviewUrl" :src="editPreviewUrl" class="preview-img" alt="预览" />
                 </div>
               </div>
             </form>
@@ -324,25 +327,23 @@
         </div>
       </div>
     </Teleport>
-    <div class="version-info desktop-only">
-      <span>{{ APP_CONFIG.appName }} {{ APP_CONFIG.copyright }}</span>
-      <br />
-      <span>Github:{{ APP_CONFIG.github }}</span>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import Pagination from '@/components/admin/Pagination.vue';
 import { animeApi } from '@/api/anime';
 import { useNotify } from '@/composables/useNotify';
-import { APP_CONFIG, getFullImageUrl } from '@/utils/constants';
+import { getFullImageUrl, getCoverImageUrl } from '@/utils/constants';
+import { vLazyCover } from '@/utils/lazyCover';
 import { useAuthStore } from '@/stores/auth';
 
 const { message, confirm } = useNotify();
-const router = useRouter();
+const emit = defineEmits(['data-changed']);
+const listLoading = ref(false);
+const listError = ref('');
+let listRequest = 0;
 const authStore = useAuthStore();
 
 /** 当前登录账号是否为演示账户，演示账户仅允许读取数据 */
@@ -350,8 +351,8 @@ const isDemoAccount = computed(() => authStore.isDemo);
 
 /** 原始导航项配置 */
 const baseNavItems = [
-  { key: 'add', label: '添加新番', icon: 'fa-solid fa-plus-circle' },
-  { key: 'all', label: '已添加的动漫', icon: 'fa-solid fa-list-ul' },
+  { key: 'all', label: '全部记录', icon: 'fa-solid fa-list-ul' },
+  { key: 'add', label: '添加新番', icon: 'fa-solid fa-plus' },
   { key: 'favorite', label: '最喜欢的动漫', icon: 'fa-solid fa-heart' },
   { key: 'watching', label: '正在追的动漫', icon: 'fas fa-running' }
 ];
@@ -362,7 +363,7 @@ const navItems = computed(() =>
 );
 
 /** 当前视图 */
-const currentView = ref(isDemoAccount.value ? 'all' : 'add');
+const currentView = ref('all');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const animeList = ref([]);
@@ -414,7 +415,7 @@ async function handleSearch() {
     message({ content: '请输入动漫标题进行检索！', type: 'error' });
     return;
   }
-  
+
   isSearching.value = true;
   searchResults.value = null;
   try {
@@ -422,7 +423,7 @@ async function handleSearch() {
     // 状态码 200: 成功从TMDB获取到数据，赋值给下拉列表展示
     if (res.status === 200 && res.data) {
       searchResults.value = Array.isArray(res.data) ? res.data : [];
-    } 
+    }
     // 状态码 204: TMDB未找到匹配项，或者后端未配置API Key，展示空状态
     else if (res.status === 204) {
       searchResults.value = [];
@@ -451,11 +452,11 @@ function handleSelectTmdb(item) {
   addTitle.value = item.title;
   addForm.episodes = item.episodes || 12;
   addForm.description = item.description || '';
-  
+
   // 记录 TMDB 图片 URL，供后端直接下载或保存
   addForm.coverImageUrl = item.coverImage || '';
   addPreviewUrl.value = item.coverImage || ''; // 在模态框中预览此图片
-  
+
   // 隐藏下拉检索结果，并弹出确认编辑的模态窗口
   searchResults.value = null;
   showAddModal.value = true;
@@ -497,6 +498,10 @@ function switchNav(key) {
     return;
   }
 
+  if (!navItems.value.some((item) => item.key === key)) return;
+  listRequest++;
+  listLoading.value = false;
+  listError.value = '';
   currentView.value = key;
   if (key !== 'add') {
     currentPage.value = 1;
@@ -508,20 +513,36 @@ function switchNav(key) {
  * 加载动漫列表
  */
 async function loadList(type, page) {
+  const request = ++listRequest;
+  listLoading.value = true;
+  listError.value = '';
   try {
     const safeRequestPage = clampPage(page);
     const res = await animeApi.getAdminList(type, safeRequestPage);
+    if (request !== listRequest) return;
     const data = res?.data || {};
     const safeTotalPages = Math.max(1, Math.trunc(Number(data.totalPages)) || 1);
     const backendPage = Math.trunc(Number(data.number)) + 1;
 
     animeList.value = Array.isArray(data.content) ? data.content : [];
     totalPages.value = safeTotalPages;
-    currentPage.value = clampPage(Number.isFinite(backendPage) ? backendPage : safeRequestPage, safeTotalPages);
+    currentPage.value = clampPage(
+      Number.isFinite(backendPage) ? backendPage : safeRequestPage,
+      safeTotalPages
+    );
   } catch (err) {
-    message({ content: '数据加载失败', type: 'error' });
+    if (request === listRequest) listError.value = '读取失败，请检查后端服务或网络。';
+  } finally {
+    if (request === listRequest) listLoading.value = false;
   }
 }
+
+function refresh() {
+  if (currentView.value === 'add') return;
+  return loadList(currentView.value, currentPage.value);
+}
+
+defineExpose({ refresh });
 
 /**
  * 添加动漫 - 打开模态窗口
@@ -545,6 +566,7 @@ function openAddModal() {
  * 添加动漫 - 关闭模态窗口
  */
 function closeAddModal() {
+  revokePreview(addPreviewUrl.value);
   showAddModal.value = false;
   resetAddForm();
 }
@@ -569,14 +591,15 @@ function triggerUpload() {
   addFileInput.value?.click();
 }
 
-/** 
- * 处理封面文件选择 
+/**
+ * 处理封面文件选择
  * 当用户在“添加/编辑”时主动选择了本地图片，需要覆盖之前的 TMDB 预设图片
  */
 function handleAddFileChange(event) {
   const file = event.target.files[0];
   if (!file) return;
   addCoverFile = file; // 记录本地文件对象用于表单提交
+  revokePreview(addPreviewUrl.value);
   addPreviewUrl.value = URL.createObjectURL(file); // 生成本地Blob预览
   addForm.coverImageUrl = ''; // 清空TMDB继承的URL，确保优先使用本地文件
 }
@@ -602,12 +625,12 @@ async function submitAdd() {
   formData.append('isFavorite', addForm.isFavorite);
   formData.append('isWatching', addForm.isWatching);
   formData.append('description', addForm.description);
-  
+
   // 封面提交逻辑分支：
   // 如果用户主动上传了文件，优先发送文件对象
   if (addCoverFile) {
     formData.append('coverImage', addCoverFile);
-  } 
+  }
   // 否则，如果之前通过 TMDB 检索保留了网络URL，则提交此URL供后端处理
   else if (addForm.coverImageUrl) {
     formData.append('coverImageUrl', addForm.coverImageUrl);
@@ -615,6 +638,7 @@ async function submitAdd() {
 
   try {
     await animeApi.addAnime(formData);
+    emit('data-changed');
     message({ content: '添加成功！', type: 'success' });
     closeAddModal();
     loadList('all', 1);
@@ -659,6 +683,7 @@ async function openEditModal(id) {
 
 /** 关闭编辑窗口 */
 function closeEditModal() {
+  revokePreview(editPreviewUrl.value);
   showEditModal.value = false;
   editCoverFile = null;
 }
@@ -674,6 +699,7 @@ function handleEditFileChange(event) {
   const file = event.target.files[0];
   if (!file) return;
   editCoverFile = file;
+  revokePreview(editPreviewUrl.value);
   editPreviewUrl.value = URL.createObjectURL(file);
 }
 
@@ -700,6 +726,7 @@ async function submitEdit() {
 
   try {
     await animeApi.updateAnime(formData);
+    emit('data-changed');
     message({ content: '修改成功！', type: 'success' });
     closeEditModal();
     loadList(currentView.value, currentPage.value);
@@ -722,12 +749,23 @@ async function handleDelete(id) {
 
   try {
     await animeApi.deleteAnime(id);
+    emit('data-changed');
     message({ content: '删除成功！', type: 'success' });
     loadList(currentView.value, currentPage.value);
   } catch (err) {
     message({ content: '删除失败', type: 'error' });
   }
 }
+
+function revokePreview(url) {
+  if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+}
+
+onBeforeUnmount(() => {
+  listRequest++;
+  revokePreview(addPreviewUrl.value);
+  revokePreview(editPreviewUrl.value);
+});
 
 onMounted(() => {
   if (currentView.value !== 'add') {
@@ -737,164 +775,95 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 基础布局 */
-
 .spa-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  background: #fff;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
 }
-
-/* 侧边栏 */
-
-.side-nav {
-  padding: 20px 15px;
-  width: 250px;
-  background: #fff;
-  border-right: 1px solid #f1f5f9;
+.management-header {
+  display: flex;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.logo-centered-container {
-  display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  width: 100%;
-  padding-top: 25px;
-  padding-bottom: 30px;
+  padding: 27px 32px 23px;
 }
-
-.logo-text {
-  font-size: 20px;
-  font-weight: 800;
-  color: #4b88fa;
+.management-header > div > span {
+  color: #8992a1;
+  font-size: 9px;
+  letter-spacing: 1.5px;
 }
-
-.logo-subtitle {
-  font-size: 14px;
-  color: #79a4f3;
-  font-weight: 550;
-  margin: 0;
-  letter-spacing: 2px;
-  text-align: center;
+.management-header h1 {
+  font-size: 28px;
+  font-weight: 650;
+  margin: 9px 0 7px;
+  letter-spacing: -1px;
 }
-
-.nav-item {
+.management-header h1 span {
+  color: #2386e5;
+}
+.management-header p {
+  font-size: 11px;
+  color: #8992a1;
+}
+.management-tabs {
   display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  cursor: pointer;
-  color: #94a3b8;
-  transition: 0.2s;
+  flex-shrink: 0;
+  margin: 0 32px;
+  border-bottom: 1px solid var(--border);
 }
-
-.nav-item i {
-  margin-right: 12px;
-  width: 20px;
-  text-align: center;
-  font-size: 18px;
-  color: #2563eb;
-}
-
-.nav-item:hover {
-  background-color: #f8fafc;
-  color: #2563eb;
-}
-
-.nav-item.active {
-  background: #eff6ff;
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.nav-divider {
-  height: 10px;
-  border-bottom: 1px solid #f1f5f9;
-  margin: 10px 0;
-}
-
-.nav-info {
-  color: #4b88fa;
-}
-
-.nav-info h3 {
-  font-size: 16px;
-}
-
-.nav-info span {
-  font-size: 16px;
-}
-
-/* 主内容区 */
-
-.main-viewport {
-  flex: 1;
-  display: flex;
-  height: 100%;
-  min-width: 0;
-  position: relative;
-  background: #fff;
-}
-
-.sub-view {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* 返回主页按钮 */
-
-.back-home-btn {
-  position: absolute;
-  top: 20px;
-  right: 30px;
-  z-index: 1000;
-  background: #f1f5f9;
-  color: #475569;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 50px;
-  font-weight: 600;
-  font-size: 16px;
-  cursor: pointer;
-  transition: 0.2s;
+.management-tabs button {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 14px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 11px;
+  color: #8190a2;
 }
-
-.back-home-btn:hover {
-  background: #e2e8f0;
-  color: #2563eb;
+.management-tabs button.active {
+  border-bottom-color: #3186d7;
+  color: #247dcc;
 }
-
-.order-container {
+.main-viewport {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+}
+.sub-view {
+  width: 100%;
   height: 100%;
+  min-height: 0;
+}
+.order-container {
   display: flex;
   flex-direction: column;
-  position: relative;
-  background: #fff;
-  background-image: radial-gradient(#f0f0f0 0.5px, transparent 0.5px);
-  background-size: 24px 24px;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
 }
-
 .results-top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 30px 40px 10px;
+  padding: 20px 32px 12px;
+  flex-shrink: 0;
 }
-
 .page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8290a1;
+}
+.list-error {
+  padding: 16px;
+  background: #fff2f0;
+  color: #a04f43;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
 }
 
 /* 表格 */
@@ -902,7 +871,8 @@ onMounted(() => {
 .table-wrapper {
   flex: 1;
   overflow-y: auto;
-  padding: 0 40px;
+  padding: 0 32px 20px;
+  min-height: 0;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -918,7 +888,8 @@ onMounted(() => {
   text-align: left;
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 10px;
+  border-spacing: 0;
+  border: 1px solid var(--border);
 }
 
 .modern-table th {
@@ -932,7 +903,7 @@ onMounted(() => {
 
 .modern-table tbody tr td {
   text-align: left;
-  padding: 15px 20px;
+  padding: 12px 20px;
   font-size: 15px;
   background: #fff;
   transition: border-color 0.2s;
@@ -1181,7 +1152,6 @@ onMounted(() => {
 }
 
 .result-list {
-
   /* 
    * 限制最大高度，仅显示大约 2 条数据 (每条约 100px)
    * 超过部分出现垂直滚动条
@@ -1190,11 +1160,13 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.fade-down-enter-active, .fade-down-leave-active {
+.fade-down-enter-active,
+.fade-down-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.fade-down-enter-from, .fade-down-leave-to {
+.fade-down-enter-from,
+.fade-down-leave-to {
   opacity: 0;
   transform: translateY(-10px);
 }
@@ -1533,20 +1505,94 @@ onMounted(() => {
   background: #e2e8f0;
 }
 
-/* 版本信息 */
-
-.version-info {
-  position: fixed;
-  left: 20px;
-  bottom: 20px;
-  z-index: 1001;
-  color: #333;
-  font-size: 14px;
-  opacity: 0.9;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
-}
-
 .desktop-only {
   display: block;
+}
+</style>
+
+<style scoped>
+.modern-table th {
+  background: #f1f4f8;
+  color: #718298;
+  font-weight: 500;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.modern-table tbody tr td {
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  font-size: 12px;
+  border-radius: 0 !important;
+  background: #fffffff5;
+}
+.modern-table tbody tr:hover td {
+  background: #f5f9fd;
+}
+.anime-cover-thumb {
+  width: 38px;
+  height: 51px;
+  border-radius: 2px;
+  object-fit: cover;
+  background: #eaf0f6;
+}
+.btn-edit,
+.btn-delete {
+  border-radius: 2px;
+  font-size: 11px;
+}
+.btn-edit {
+  background: #eaf3fc;
+  color: #337ebc;
+}
+.btn-delete {
+  background: #fff0f0;
+  color: #c55964;
+}
+.status-pill {
+  border-radius: 2px;
+  font-size: 10px;
+}
+.search-landing {
+  background: none;
+  overflow-y: auto;
+}
+.main-title {
+  font-size: 30px;
+  font-weight: 600;
+}
+.modern-search-bar {
+  border-radius: 3px;
+  box-shadow: 0 5px 25px #233c5410;
+  border: 1px solid #d3dfe9;
+}
+.modern-search-bar button {
+  border-radius: 2px;
+}
+.search-results-dropdown {
+  border-radius: 3px;
+}
+.custom-modal {
+  border-radius: 4px;
+}
+.custom-modal .form-input {
+  border-radius: 3px;
+  font-size: 12px;
+}
+.custom-modal .btn-primary,
+.custom-modal .btn-secondary {
+  border-radius: 2px;
+  box-shadow: none;
+  font-size: 12px;
+}
+.custom-modal .btn-primary {
+  background: #3284c9;
+}
+.custom-modal .upload-trigger {
+  border-radius: 3px;
+}
+.modal-backdrop {
+  backdrop-filter: none;
+  background: #1a293d66;
 }
 </style>

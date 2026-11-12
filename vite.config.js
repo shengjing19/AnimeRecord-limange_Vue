@@ -29,16 +29,18 @@ export default defineConfig({
 
   server: {
     port: 3000,
-    open: true
+    open: true,
+    watch: { ignored: ['**/release/**', '**/.temp/**'] }
   },
 
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          echarts: ['echarts'],
-          animejs: ['animejs'],
-          vendor: ['vue', 'vue-router', 'pinia', 'axios']
+        manualChunks(id) {
+          if (/[\\/]node_modules[\\/](echarts|zrender)[\\/]/.test(id)) return 'charts';
+          if (/[\\/]node_modules[\\/]animejs[\\/]/.test(id)) return 'motion';
+          if (/[\\/]node_modules[\\/](@vue|vue|vue-router|pinia|axios)[\\/]/.test(id))
+            return 'vendor';
         }
       }
     }

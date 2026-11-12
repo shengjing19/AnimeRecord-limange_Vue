@@ -8,7 +8,12 @@
       @keydown.esc.prevent="emitClose"
     >
       <main class="timeline-scene">
-        <button class="timeline-close-btn" type="button" aria-label="关闭时间线模式" @click="emitClose">
+        <button
+          class="timeline-close-btn"
+          type="button"
+          aria-label="关闭时间线模式"
+          @click="emitClose"
+        >
           <i class="fas fa-xmark" aria-hidden="true"></i>
         </button>
 
@@ -29,8 +34,8 @@
           <div class="timeline-ambient-grid" aria-hidden="true"></div>
           <div class="timeline-terrain" aria-hidden="true"></div>
 
-      <header class="timeline-brand" aria-label="Anime TimeLine">
-        <strong>Anime TimeLine</strong>
+          <header class="timeline-brand" aria-label="Anime TimeLine">
+            <strong>Anime TimeLine</strong>
           </header>
 
           <aside
@@ -96,7 +101,8 @@
                 <span class="timeline-card-copy">
                   <span class="timeline-card-title">{{ card.anime.title }}</span>
                   <span class="timeline-card-meta">
-                    {{ formatDate(card.anime.finishDate) }} · {{ card.anime.totalEpisodes || '--' }} 集
+                    {{ formatDate(card.anime.finishDate) }} ·
+                    {{ card.anime.totalEpisodes || '--' }} 集
                   </span>
                 </span>
               </button>
@@ -155,8 +161,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { animate, createTimeline, cubicBezier, stagger } from 'animejs';
 import { animeApi } from '@/api/anime';
 import { getFullImageUrl } from '@/utils/constants';
+import { useAppStore } from '@/stores/app';
 
 const emit = defineEmits(['close']);
+const appStore = useAppStore();
 
 const CARD_WHEEL_INTERVAL = 260;
 const VISIBLE_CARD_RADIUS = 3;
@@ -191,7 +199,6 @@ const animations = {
   detail: null,
   progress: null
 };
-
 
 const activeGroup = computed(() => groups.value[groupIndex.value] || null);
 const activeAnimes = computed(() => activeGroup.value?.animes || []);
@@ -270,14 +277,14 @@ onBeforeUnmount(() => {
   document.body.style.overflow = previousBodyOverflow;
 });
 
-
 function emitClose() {
   cleanupAnimations();
   emit('close');
 }
 
 function updateClientFlags() {
-  reduceMotion.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  reduceMotion.value =
+    appStore.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function handleResize() {
@@ -551,10 +558,13 @@ async function playCardEnter(options = {}) {
   }
 
   prepareCardEnter(cards);
-  animations.cardEnter = animate(cards, getCardEnterAnimation(options, () => {
-    finalizeCardEnter(cards);
-    animations.cardEnter = null;
-  }));
+  animations.cardEnter = animate(
+    cards,
+    getCardEnterAnimation(options, () => {
+      finalizeCardEnter(cards);
+      animations.cardEnter = null;
+    })
+  );
 }
 
 function stopCardEnter() {
@@ -602,7 +612,9 @@ function getCardEnterAnimation(options = {}, onComplete) {
     scale: (target) => getCardSlot(getElementCardIndex(target)).scale,
     opacity: (target) => getCardSlot(getElementCardIndex(target)).autoAlpha,
     duration: options.duration || (activeAnimes.value.length > 10 ? 760 : 920),
-    delay: (target) => (options.delay || 0) + Math.abs(getCardFlowIndex(getElementCardIndex(target))) * (options.stagger || 34),
+    delay: (target) =>
+      (options.delay || 0) +
+      Math.abs(getCardFlowIndex(getElementCardIndex(target))) * (options.stagger || 34),
     ease: 'outExpo',
     composition: 'replace',
     onUpdate: syncCardZIndex,
@@ -715,7 +727,9 @@ function handleCardStageClick(event) {
     return;
   }
 
-  const activeCard = getCardElements().find((card) => getElementCardIndex(card) === animeIndex.value);
+  const activeCard = getCardElements().find(
+    (card) => getElementCardIndex(card) === animeIndex.value
+  );
   const stageRect = cardStageRef.value.getBoundingClientRect();
   const clickX = event.clientX - (stageRect.left + stageRect.width / 2);
   const deadZone = (activeCard?.getBoundingClientRect().width || 300) * 0.34;
@@ -835,15 +849,19 @@ function animateShell(options = {}) {
   const isDesktop = window.innerWidth >= 980;
   const ambientGrid = root.querySelector('.timeline-ambient-grid');
   const axis = root.querySelector('.timeline-axis');
-  const brandParts = Array.from(root.querySelectorAll('.timeline-brand strong, .timeline-brand span'));
+  const brandParts = Array.from(
+    root.querySelectorAll('.timeline-brand strong, .timeline-brand span')
+  );
   const timeNodes = Array.from(root.querySelectorAll('.time-node'));
   const statItems = Array.from(root.querySelectorAll('.timeline-stat'));
   const statLines = Array.from(root.querySelectorAll('.timeline-stat-line'));
   const monthKicker = root.querySelector('.timeline-month-kicker');
   const infoConsole = root.querySelector('.timeline-info-console');
-  const infoText = Array.from(root.querySelectorAll(
-    '.timeline-console-head strong, .timeline-console-head span, .timeline-console-meta span, .timeline-console-description'
-  ));
+  const infoText = Array.from(
+    root.querySelectorAll(
+      '.timeline-console-head strong, .timeline-console-head span, .timeline-console-meta span, .timeline-console-description'
+    )
+  );
   const enterCards = options.includeCards ? getCardElements() : [];
   const shouldAnimateCards = enterCards.length > 0;
 
@@ -879,87 +897,128 @@ function animateShell(options = {}) {
   }
 
   if (brandParts.length) {
-    timeline.add(brandParts, {
-      translateY: ['-18px', '0px'],
-      opacity: [0, 1],
-      duration: 420,
-      delay: stagger(60)
-    }, 90);
+    timeline.add(
+      brandParts,
+      {
+        translateY: ['-18px', '0px'],
+        opacity: [0, 1],
+        duration: 420,
+        delay: stagger(60)
+      },
+      90
+    );
   }
 
   if (axis) {
-    timeline.add(axis, isDesktop
-      ? { scaleY: [0, 1], duration: 820 }
-      : { scaleX: [0, 1], duration: 820 }, 120);
+    timeline.add(
+      axis,
+      isDesktop ? { scaleY: [0, 1], duration: 820 } : { scaleX: [0, 1], duration: 820 },
+      120
+    );
   }
 
   if (timeNodes.length) {
-    timeline.add(timeNodes, {
-      translateX: ['-24px', '0px'],
-      opacity: [0, 1],
-      duration: 480,
-      delay: stagger(42)
-    }, 190);
+    timeline.add(
+      timeNodes,
+      {
+        translateX: ['-24px', '0px'],
+        opacity: [0, 1],
+        duration: 480,
+        delay: stagger(42)
+      },
+      190
+    );
   }
 
   if (shouldAnimateCards) {
-    timeline.add(enterCards, getCardEnterAnimation({
-      duration: activeAnimes.value.length > 10 ? 760 : 920,
-      stagger: 32
-    }, () => {
-      finalizeCardEnter(enterCards);
-    }), 300);
+    timeline.add(
+      enterCards,
+      getCardEnterAnimation(
+        {
+          duration: activeAnimes.value.length > 10 ? 760 : 920,
+          stagger: 32
+        },
+        () => {
+          finalizeCardEnter(enterCards);
+        }
+      ),
+      300
+    );
   }
 
   if (monthKicker) {
-    timeline.add(monthKicker, {
-      translateY: ['20px', '0px'],
-      opacity: [0, 1],
-      duration: 440
-    }, 330);
+    timeline.add(
+      monthKicker,
+      {
+        translateY: ['20px', '0px'],
+        opacity: [0, 1],
+        duration: 440
+      },
+      330
+    );
   }
 
   if (infoConsole) {
-    timeline.add(infoConsole, {
-      opacity: [0, 1],
-      translateX: ['36px', '0px'],
-      clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'],
-      duration: 620,
-      ease: 'outQuart'
-    }, 500);
+    timeline.add(
+      infoConsole,
+      {
+        opacity: [0, 1],
+        translateX: ['36px', '0px'],
+        clipPath: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'],
+        duration: 620,
+        ease: 'outQuart'
+      },
+      500
+    );
   }
 
   if (progressBarRef.value) {
-    timeline.add(progressBarRef.value, {
-      scaleX: [0, 1],
-      duration: 560
-    }, 620);
+    timeline.add(
+      progressBarRef.value,
+      {
+        scaleX: [0, 1],
+        duration: 560
+      },
+      620
+    );
   }
 
   if (infoText.length) {
-    timeline.add(infoText, {
-      translateY: ['12px', '0px'],
-      opacity: [0, 1],
-      duration: 360,
-      delay: stagger(38),
-      ease: 'outQuad'
-    }, 650);
+    timeline.add(
+      infoText,
+      {
+        translateY: ['12px', '0px'],
+        opacity: [0, 1],
+        duration: 360,
+        delay: stagger(38),
+        ease: 'outQuad'
+      },
+      650
+    );
   }
 
   if (statItems.length) {
     timeline
-      .add(statItems, {
-        translateY: ['18px', '0px'],
-        opacity: [0, 1],
-        duration: 430,
-        delay: stagger(70)
-      }, 720)
-      .add(statLines, {
-        scaleX: [0, 1],
-        duration: 360,
-        delay: stagger(70),
-        ease: 'outQuad'
-      }, 800);
+      .add(
+        statItems,
+        {
+          translateY: ['18px', '0px'],
+          opacity: [0, 1],
+          duration: 430,
+          delay: stagger(70)
+        },
+        720
+      )
+      .add(
+        statLines,
+        {
+          scaleX: [0, 1],
+          duration: 360,
+          delay: stagger(70),
+          ease: 'outQuad'
+        },
+        800
+      );
   }
 }
 
@@ -1009,7 +1068,7 @@ function formatDate(value) {
   overflow: hidden;
   background: #101211;
   color: #f3f8f6;
-  font-family: Inter, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  font-family: Inter, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
   letter-spacing: 0;
 }
 
@@ -1035,20 +1094,32 @@ function formatDate(value) {
   overflow: hidden;
   isolation: isolate;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 28%, transparent 72%, rgba(0, 0, 0, 0.42)),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.5),
+      transparent 28%,
+      transparent 72%,
+      rgba(0, 0, 0, 0.42)
+    ),
     linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.46)),
-    url('/img/bg2.png') center center / cover no-repeat,
+    url('/img/timeline.webp') center center / cover no-repeat,
     #101211;
 }
 
 .timeline-scene::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.32), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.28)),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.32),
+      transparent 24%,
+      transparent 76%,
+      rgba(0, 0, 0, 0.28)
+    ),
     linear-gradient(180deg, transparent 56%, rgba(0, 0, 0, 0.42));
 }
 
@@ -1068,7 +1139,10 @@ function formatDate(value) {
   justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(16px);
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .timeline-close-btn:hover,
@@ -1102,10 +1176,15 @@ function formatDate(value) {
   transform: perspective(960px) rotateX(63deg);
   transform-origin: 50% 100%;
   background:
-    linear-gradient(180deg, transparent 0 10%, rgba(169, 242, 255, 0.13) 38%, rgba(255, 255, 255, 0.07) 46%, transparent 74%),
+    linear-gradient(
+      180deg,
+      transparent 0 10%,
+      rgba(169, 242, 255, 0.13) 38%,
+      rgba(255, 255, 255, 0.07) 46%,
+      transparent 74%
+    ),
     repeating-linear-gradient(0deg, rgba(215, 251, 255, 0.16) 0 1px, transparent 1px 13px),
-    repeating-linear-gradient(90deg, rgba(215, 251, 255, 0.15) 0 1px, transparent 1px 13px),
-    #111716;
+    repeating-linear-gradient(90deg, rgba(215, 251, 255, 0.15) 0 1px, transparent 1px 13px), #111716;
   border-top: 1px solid rgba(215, 251, 255, 0.14);
   box-shadow:
     0 -50px 120px rgba(169, 242, 255, 0.22),
@@ -1204,7 +1283,7 @@ function formatDate(value) {
 }
 
 .time-node::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 8px;
   top: 50%;
@@ -1213,7 +1292,12 @@ function formatDate(value) {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
   transform: translate(-50%, -50%);
-  transition: box-shadow 500ms ease, background 500ms ease, width 500ms ease, height 500ms ease, border 500ms ease;
+  transition:
+    box-shadow 500ms ease,
+    background 500ms ease,
+    width 500ms ease,
+    height 500ms ease,
+    border 500ms ease;
 }
 
 .time-node:hover,
@@ -1252,7 +1336,7 @@ function formatDate(value) {
 }
 
 .time-node.is-active::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 8px;
   top: 50%;
@@ -1279,7 +1363,9 @@ function formatDate(value) {
   font-weight: 500;
   transform: scale(1.05);
   transform-origin: left center;
-  text-shadow: 0 0 20px rgba(215, 251, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow:
+    0 0 20px rgba(215, 251, 255, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .timeline-showcase {
@@ -1361,7 +1447,7 @@ function formatDate(value) {
 }
 
 .timeline-anime-card::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background:
@@ -1405,8 +1491,7 @@ function formatDate(value) {
 .timeline-anime-card.is-missing-cover {
   background:
     linear-gradient(145deg, rgba(169, 242, 255, 0.2), transparent 46%),
-    linear-gradient(315deg, rgba(218, 127, 142, 0.16), transparent 54%),
-    #171918;
+    linear-gradient(315deg, rgba(218, 127, 142, 0.16), transparent 54%), #171918;
 }
 
 .timeline-interaction-hint {

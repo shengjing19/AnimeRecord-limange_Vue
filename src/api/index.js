@@ -6,11 +6,12 @@
  */
 
 import axios from 'axios';
-import { API_BASE_URL } from '@/utils/constants';
+import { useAuthStore } from '@/stores/auth';
+import { getApiBaseUrl } from '@/utils/server';
 
 /** 创建Axios实例 */
 const http = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   timeout: 15000
 });
 
@@ -30,6 +31,7 @@ function isAnonymousAuthRequest(url = '') {
  */
 http.interceptors.request.use(
   (config) => {
+    config.baseURL = getApiBaseUrl();
     const token = localStorage.getItem('jwt_token');
     if (token && !isAnonymousAuthRequest(config.url)) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -49,13 +51,7 @@ http.interceptors.response.use(
     const requestUrl = error.config?.url || '';
 
     if (status === 401 && !isAnonymousAuthRequest(requestUrl)) {
-      localStorage.removeItem('jwt_token');
-      localStorage.removeItem('username');
-      localStorage.removeItem('is_demo_account');
-
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      useAuthStore().logout();
     }
     return Promise.reject(error);
   }

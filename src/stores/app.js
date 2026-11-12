@@ -1,29 +1,41 @@
-/**
- * limange - stores/app.js
- * 应用全局状态管理 (Pinia Store)
- * 管理背景主题等全局偏好
- * by shengjing19(Hisx12123)
- * created 2026-05-31
- */
-
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-export const useAppStore = defineStore('app', () => {
-  /** 背景主题模式 */
-  const bgTheme = ref(localStorage.getItem('app_bg_theme') || 'image');
+function readChoice(key, choices, fallback) {
+  const value = localStorage.getItem(key);
+  return choices.includes(value) ? value : fallback;
+}
 
-  /**
-   * 设置背景主题
-   * @param {string} theme - 'image' | 'solid'
-   */
-  function setBgTheme(theme) {
-    bgTheme.value = theme;
-    localStorage.setItem('app_bg_theme', theme);
+/** 仅保存外观偏好；凭证仍由认证模块管理。 */
+export const useAppStore = defineStore('app', () => {
+  const migrated = localStorage.getItem('app_workspace_appearance') === '1';
+  const bgTheme = ref(
+    migrated ? readChoice('app_bg_theme', ['manga', 'solid', 'image'], 'manga') : 'manga'
+  );
+  const loginStyle = ref(readChoice('app_login_style', ['native', 'console'], 'console'));
+  const reduceMotion = ref(localStorage.getItem('app_reduce_motion') !== 'false');
+
+  if (!migrated) {
+    localStorage.setItem('app_bg_theme', 'manga');
+    localStorage.setItem('app_workspace_appearance', '1');
   }
 
-  return {
-    bgTheme,
-    setBgTheme
-  };
+  function setBgTheme(value) {
+    if (!['manga', 'solid', 'image'].includes(value)) return;
+    bgTheme.value = value;
+    localStorage.setItem('app_bg_theme', value);
+  }
+
+  function setLoginStyle(value) {
+    if (!['native', 'console'].includes(value)) return;
+    loginStyle.value = value;
+    localStorage.setItem('app_login_style', value);
+  }
+
+  function setReduceMotion(value) {
+    reduceMotion.value = Boolean(value);
+    localStorage.setItem('app_reduce_motion', String(reduceMotion.value));
+  }
+
+  return { bgTheme, loginStyle, reduceMotion, setBgTheme, setLoginStyle, setReduceMotion };
 });

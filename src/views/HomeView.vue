@@ -1,337 +1,346 @@
 <template>
   <div class="app-container">
-    <AppSidebar :active-tab="activeTab" @tab-change="handleTabChange" />
-    <main class="app-main" ref="mainContainer">
-      <AppHeader v-if="activeTab !== 'stats' || !cachedData.stats" :title="pageTitle" />
-      <div class="content-section" ref="contentSection">
-        <LoadingSpinner v-if="loading" />
-        <template v-if="activeTab === 'finished' && cachedData.finished">
-          <div
-            v-for="group in cachedData.finished.groupedAnimes"
-            :key="`${group.year}-${group.month}`"
-            class="ios-section"
-          >
-            <div class="ios-section-header">
-              {{ group.year }}
-              <span class="ios-section-sub">{{ group.month }}</span>
-              <span class="ios-section-count">{{ group.count }} 部</span>
-            </div>
-            <div class="anime-grid">
-              <AnimeCard
-                v-for="anime in group.animes"
-                :key="anime.id"
-                :anime="anime"
-                @click="openDetail"
-              />
-            </div>
+    <AppSidebar :active-tab="activeTab" :counts="tabCounts" @tab-change="handleTabChange" />
+    <section class="workspace">
+      <WorkspaceTabs :active-tab="activeTab" :counts="tabCounts" @change="handleTabChange" />
+      <main
+        id="workspace-panel"
+        class="app-main"
+        :class="{ 'management-main': activeTab === 'admin' }"
+        ref="mainContainer"
+        role="tabpanel"
+        tabindex="0"
+        :aria-labelledby="'tab-' + activeTab"
+      >
+        <AppHeader
+          v-if="activeTab !== 'admin'"
+          :title="pageTitle"
+          :description="currentTab.description"
+          :count="tabCounts[activeTab]"
+          :loading="loading"
+          @refresh="refreshActiveTab"
+        />
+        <div
+          class="content-section"
+          :class="{ 'management-content': activeTab === 'admin' }"
+          ref="contentSection"
+        >
+          <LoadingSpinner v-if="loading" />
+          <div v-if="loadError" class="workspace-error" role="alert">
+            <span>{{ loadError }}</span
+            ><button class="subtle-button" @click="refreshActiveTab">重试</button>
           </div>
-          <p v-if="!cachedData.finished.groupedAnimes?.length" class="empty-text">暂无数据</p>
-        </template>
-        <template v-if="activeTab === 'favorite' && cachedData.favorite">
-          <div class="ios-section">
-            <div class="ios-section-header">
-              全部
-              <span class="ios-section-count">共 {{ cachedData.favorite.total }} 部</span>
-            </div>
-            <div class="anime-grid">
-              <AnimeCard
-                v-for="anime in cachedData.favorite.animes"
-                :key="anime.id"
-                :anime="anime"
-                @click="openDetail"
-              />
-            </div>
-          </div>
-          <p v-if="!cachedData.favorite.animes?.length" class="empty-text">暂无数据</p>
-        </template>
-        <template v-if="activeTab === 'watching' && cachedData.watching">
-          <div class="ios-section">
-            <div class="ios-section-header">
-              全部
-              <span class="ios-section-count">共 {{ cachedData.watching.total }} 部</span>
-            </div>
-            <div class="anime-grid">
-              <AnimeCard
-                v-for="anime in cachedData.watching.animes"
-                :key="anime.id"
-                :anime="anime"
-                @click="openDetail"
-              />
-            </div>
-          </div>
-          <p v-if="!cachedData.watching.animes?.length" class="empty-text">暂无数据</p>
-        </template>
-        <div v-if="activeTab === 'stats' && cachedData.stats" class="stats-dashboard-page">
-          <div class="stats-dashboard-shell">
-            <header class="stats-dashboard-header">
-              <div class="stats-title-group">
-                <h2>数据统计</h2>
-                <p>查看你的动漫观看档案</p>
+          <template v-if="isLibraryTab && currentLibraryData">
+            <div v-if="activeTab === 'finished'" class="collection-banner">
+              <div class="banner-copy">
+                <span>STORIES THAT STAY WITH YOU</span>
+                <h2>与喜欢的故事，再次相遇。</h2>
+                <p>一部动漫，一段时光。这里是你的私人收藏室。</p>
               </div>
-            </header>
-            <div class="modal-scroll-content stats-dashboard-scroll">
-              <section class="stats-overview-grid" aria-label="动漫观看总览">
-                <article class="stats-total-card">
-                  <span class="stats-card-label">累计已看</span>
-                  <div class="stats-total-value">
-                    <strong>{{ statsSummary.totalFinished }}</strong>
-                    <span>部</span>
-                  </div>
-                  <p class="stats-total-note">
-                    <i class="fas fa-star" aria-hidden="true"></i>
-                    这是你与动漫相伴的每一天！
-                    <i class="fas fa-star" aria-hidden="true"></i>
-                  </p>
-                </article>
-                <div class="stats-mini-grid">
-                  <article
-                    v-for="item in statsMetricCards"
-                    :key="item.key"
-                    class="stats-mini-card"
-                  >
-                    <span :class="['stats-icon-badge', item.tone]">
-                      <i :class="item.icon" aria-hidden="true"></i>
-                    </span>
-                    <span class="stats-mini-label">{{ item.label }}</span>
-                    <strong>{{ item.value }} <small>{{ item.unit }}</small></strong>
-                    <p>{{ item.desc }}</p>
+              <span class="banner-mark">物語のつづき</span>
+            </div>
+            <VirtualAnimeLibrary :key="activeTab" :groups="libraryGroups" @select="openDetail" />
+          </template>
+          <KeepAlive
+            ><AdminView
+              v-if="activeTab === 'admin'"
+              ref="adminView"
+              @data-changed="invalidateLibrary"
+          /></KeepAlive>
+          <div v-if="activeTab === 'stats' && cachedData.stats" class="stats-dashboard-page">
+            <div class="stats-dashboard-shell">
+              <header class="stats-dashboard-header">
+                <div class="stats-title-group">
+                  <h2>数据统计</h2>
+                  <p>查看你的动漫观看档案</p>
+                </div>
+              </header>
+              <div class="modal-scroll-content stats-dashboard-scroll">
+                <section class="stats-overview-grid" aria-label="动漫观看总览">
+                  <article class="stats-total-card">
+                    <span class="stats-card-label">累计已看</span>
+                    <div class="stats-total-value">
+                      <strong>{{ statsSummary.totalFinished }}</strong>
+                      <span>部</span>
+                    </div>
+                    <p class="stats-total-note">
+                      <i class="fas fa-star" aria-hidden="true"></i>
+                      这是你与动漫相伴的每一天！
+                      <i class="fas fa-star" aria-hidden="true"></i>
+                    </p>
                   </article>
-                </div>
-              </section>
-              <section class="stats-chart-grid" aria-label="动漫观看趋势">
-                <article class="stats-chart-card">
-                  <div class="stats-card-heading">
-                    <h3>
-                      <i class="fas fa-chart-simple" aria-hidden="true"></i>
-                      近7天观看部数
-                    </h3>
+                  <div class="stats-mini-grid">
+                    <article
+                      v-for="item in statsMetricCards"
+                      :key="item.key"
+                      class="stats-mini-card"
+                    >
+                      <span :class="['stats-icon-badge', item.tone]">
+                        <i :class="item.icon" aria-hidden="true"></i>
+                      </span>
+                      <span class="stats-mini-label">{{ item.label }}</span>
+                      <strong
+                        >{{ item.value }} <small>{{ item.unit }}</small></strong
+                      >
+                      <p>{{ item.desc }}</p>
+                    </article>
                   </div>
-                  <p class="stats-chart-desc">
-                    近7天共观看
-                    <strong>{{ statsSummary.weeklyTotal }}</strong>
-                    部，最高单日
-                    <strong>{{ statsSummary.weeklyPeak }}</strong>
-                    部
-                  </p>
-                  <div ref="weeklyChartDom" class="stats-chart-area"></div>
-                </article>
-                <article class="stats-chart-card">
-                  <div class="stats-card-heading">
+                </section>
+                <section class="stats-chart-grid" aria-label="动漫观看趋势">
+                  <article class="stats-chart-card">
+                    <div class="stats-card-heading">
+                      <h3>
+                        <i class="fas fa-chart-simple" aria-hidden="true"></i>
+                        近7天观看部数
+                      </h3>
+                    </div>
+                    <p class="stats-chart-desc">
+                      近7天共观看
+                      <strong>{{ statsSummary.weeklyTotal }}</strong>
+                      部，最高单日
+                      <strong>{{ statsSummary.weeklyPeak }}</strong>
+                      部
+                    </p>
+                    <div ref="weeklyChartDom" class="stats-chart-area"></div>
+                  </article>
+                  <article class="stats-chart-card">
+                    <div class="stats-card-heading">
+                      <h3>
+                        <i class="fas fa-chart-column" aria-hidden="true"></i>
+                        {{ currentYear }}
+                        年度观看趋势
+                      </h3>
+                      <span class="stats-chart-pill">部数</span>
+                    </div>
+                    <div ref="annualChartDom" class="stats-chart-area"></div>
+                  </article>
+                </section>
+                <section class="stats-report-card" aria-label="年度观看报告">
+                  <div class="stats-report-content">
                     <h3>
-                      <i class="fas fa-chart-column" aria-hidden="true"></i>
+                      <i class="fas fa-award" aria-hidden="true"></i>
                       {{ currentYear }}
-                      年度观看趋势
+                      年观看报告
                     </h3>
-                    <span class="stats-chart-pill">部数</span>
-                  </div>
-                  <div ref="annualChartDom" class="stats-chart-area"></div>
-                </article>
-              </section>
-              <section class="stats-report-card" aria-label="年度观看报告">
-                <div class="stats-report-content">
-                  <h3>
-                    <i class="fas fa-award" aria-hidden="true"></i>
-                    {{ currentYear }}
-                    年观看报告
-                  </h3>
-                  <div class="stats-report-grid">
-                    <div class="stats-report-item">
-                      <span class="report-icon blue"><i class="fas fa-box-archive" aria-hidden="true"></i></span>
-                      <p>看过</p>
-                      <strong>{{ statsSummary.totalFinished }} <small>部动漫</small></strong>
-                    </div>
-                    <div class="stats-report-item">
-                      <span class="report-icon purple"><i class="fas fa-book-open" aria-hidden="true"></i></span>
-                      <p>共观看</p>
-                      <strong>{{ statsSummary.annualTotal }} <small>部</small></strong>
-                    </div>
-                    <div class="stats-report-item">
-                      <span class="report-icon cyan"><i class="fas fa-calendar-check" aria-hidden="true"></i></span>
-                      <p>最活跃的月份是</p>
-                      <strong>{{ statsSummary.peakMonth }}</strong>
+                    <div class="stats-report-grid">
+                      <div class="stats-report-item">
+                        <span class="report-icon blue"
+                          ><i class="fas fa-box-archive" aria-hidden="true"></i
+                        ></span>
+                        <p>看过</p>
+                        <strong>{{ statsSummary.totalFinished }} <small>部动漫</small></strong>
+                      </div>
+                      <div class="stats-report-item">
+                        <span class="report-icon purple"
+                          ><i class="fas fa-book-open" aria-hidden="true"></i
+                        ></span>
+                        <p>共观看</p>
+                        <strong>{{ statsSummary.annualTotal }} <small>部</small></strong>
+                      </div>
+                      <div class="stats-report-item">
+                        <span class="report-icon cyan"
+                          ><i class="fas fa-calendar-check" aria-hidden="true"></i
+                        ></span>
+                        <p>最活跃的月份是</p>
+                        <strong>{{ statsSummary.peakMonth }}</strong>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="stats-report-art" aria-hidden="true"></div>
-              </section>
-              <button
-                class="stats-timeline-entry"
-                type="button"
-                :style="timelineEntryStyle"
-                aria-label="打开时间线模式"
-                @click="openTimelineMode"
-              >
-                <span class="timeline-entry-copy">
-                  <span class="timeline-entry-kicker">各年度观看报告</span>
-                  <strong>时间线模式</strong>
-                  <small>以月份穿梭你的已看完档案</small>
-                </span>
-                <span class="timeline-entry-action" aria-hidden="true">
-                  <i class="fas fa-arrow-right"></i>
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <p v-if="activeTab === 'stats' && !loading && !cachedData.stats" class="empty-text">暂无统计数据</p>
-        <div v-if="activeTab === 'settings'" class="ios-section">
-          <div class="ios-section-header desktop-only-setting">应用设置</div>
-          <div class="chart-box desktop-only-setting" style="max-width: 600px;">
-            <h4 style="margin-bottom: 15px;">
-              <i class="fas fa-palette" style="color:var(--sys-blue); margin-right:8px;"></i>
-              外观与背景
-            </h4>
-            <div class="settings-row">
-              <div>
-                <div class="settings-label">主页背景模式</div>
-                <div class="settings-desc">切换应用的基础背景风格</div>
-              </div>
-              <div class="bg-toggle-group">
-                <label
-                  v-for="opt in bgOptions"
-                  :key="opt.value"
-                  class="bg-radio"
+                  <div class="stats-report-art" aria-hidden="true"></div>
+                </section>
+                <button
+                  class="stats-timeline-entry"
+                  type="button"
+                  :style="timelineEntryStyle"
+                  aria-label="打开时间线模式"
+                  @click="openTimelineMode"
                 >
-                  <input
-                    type="radio"
-                    name="bgTheme"
-                    :value="opt.value"
-                    :checked="appStore.bgTheme === opt.value"
-                    @change="handleThemeChange(opt.value)"
-                  />
-                  <span>{{ opt.label }}</span>
-                </label>
+                  <span class="timeline-entry-copy">
+                    <span class="timeline-entry-kicker">各年度观看报告</span>
+                    <strong>时间线模式</strong>
+                    <small>以月份穿梭你的已看完档案</small>
+                  </span>
+                  <span class="timeline-entry-action" aria-hidden="true">
+                    <i class="fas fa-arrow-right"></i>
+                  </span>
+                </button>
               </div>
             </div>
           </div>
-          <div class="chart-box desktop-only-setting demo-account-box" style="max-width: 600px;">
-            <h4 style="margin-bottom: 15px;">
-              <i class="fas fa-user-shield" style="color:var(--sys-blue); margin-right:8px;"></i>
-              演示账户
-            </h4>
-            <div v-if="isDemoAccount" class="demo-account-notice">
-              当前为演示账户，仅可浏览数据，不能管理演示账户。
-            </div>
-            <template v-else>
-              <div class="settings-row demo-summary-row">
-                <div>
-                  <div class="settings-label">演示账户状态</div>
-                  <div class="settings-desc">
-                    {{ demoAccount ? `已开启：${demoAccount.username}` : '未开启，创建后可用于给访客演示系统' }}
-                  </div>
-                </div>
-                <span :class="['demo-status-pill', demoAccount ? 'enabled' : 'disabled']">
-                  {{ demoAccount ? '已开启' : '未开启' }}
-                </span>
+          <p v-if="activeTab === 'stats' && !loading && !cachedData.stats" class="empty-text">
+            暂无统计数据
+          </p>
+          <div v-if="activeTab === 'settings'" class="ios-section">
+            <AppearanceSettings />
+            <div class="chart-box desktop-only-setting demo-account-box" style="max-width: 600px">
+              <h4 style="margin-bottom: 15px">
+                <i class="fas fa-user-shield" style="color: var(--sys-blue); margin-right: 8px"></i>
+                演示账户
+              </h4>
+              <div v-if="isDemoAccount" class="demo-account-notice">
+                当前为演示账户，仅可浏览数据，不能管理演示账户。
               </div>
-              <div v-if="demoLoading" class="demo-loading">正在读取演示账户状态...</div>
-              <form v-else-if="!demoAccount" class="demo-form" @submit.prevent="handleCreateDemoUser">
-                <div class="demo-form-row">
-                  <label class="demo-field">
-                    <span>演示用户名</span>
-                    <input
-                      v-model="demoCreateForm.username"
-                      type="text"
-                      maxlength="10"
-                      autocomplete="username"
-                      :disabled="demoSubmitting"
-                      placeholder="最多 10 个字符"
-                    />
-                  </label>
-                  <label class="demo-field">
-                    <span>演示密码</span>
-                    <input
-                      v-model="demoCreateForm.password"
-                      type="password"
-                      minlength="6"
-                      maxlength="72"
-                      autocomplete="new-password"
-                      :disabled="demoSubmitting"
-                      placeholder="6-72 个字符"
-                    />
-                  </label>
+              <template v-else>
+                <div class="settings-row demo-summary-row">
+                  <div>
+                    <div class="settings-label">演示账户状态</div>
+                    <div class="settings-desc">
+                      {{
+                        demoAccount
+                          ? `已开启：${demoAccount.username}`
+                          : '未开启，创建后可用于给访客演示系统'
+                      }}
+                    </div>
+                  </div>
+                  <span :class="['demo-status-pill', demoAccount ? 'enabled' : 'disabled']">
+                    {{ demoAccount ? '已开启' : '未开启' }}
+                  </span>
                 </div>
-                <button type="submit" class="demo-primary-btn" :disabled="demoSubmitting">
-                  <i :class="['fas', demoSubmitting ? 'fa-spinner fa-spin' : 'fa-toggle-on']"></i>
-                  {{ demoSubmitting ? '开启中' : '开启演示账户' }}
-                </button>
-              </form>
-              <div v-else class="demo-manage-area">
-                <form class="demo-form" @submit.prevent="handleUpdateDemoPassword">
-                  <label class="demo-field">
-                    <span>新演示密码</span>
-                    <input
-                      v-model="demoPasswordForm.password"
-                      type="password"
-                      minlength="6"
-                      maxlength="72"
-                      autocomplete="new-password"
-                      :disabled="demoPasswordSubmitting"
-                      placeholder="输入新密码"
-                    />
-                  </label>
-                  <button type="submit" class="demo-primary-btn" :disabled="demoPasswordSubmitting">
-                    <i :class="['fas', demoPasswordSubmitting ? 'fa-spinner fa-spin' : 'fa-key']"></i>
-                    {{ demoPasswordSubmitting ? '修改中' : '修改密码' }}
+                <div v-if="demoLoading" class="demo-loading">正在读取演示账户状态...</div>
+                <form
+                  v-else-if="!demoAccount"
+                  class="demo-form"
+                  @submit.prevent="handleCreateDemoUser"
+                >
+                  <div class="demo-form-row">
+                    <label class="demo-field">
+                      <span>演示用户名</span>
+                      <input
+                        v-model="demoCreateForm.username"
+                        type="text"
+                        maxlength="10"
+                        autocomplete="username"
+                        :disabled="demoSubmitting"
+                        placeholder="最多 10 个字符"
+                      />
+                    </label>
+                    <label class="demo-field">
+                      <span>演示密码</span>
+                      <input
+                        v-model="demoCreateForm.password"
+                        type="password"
+                        minlength="6"
+                        maxlength="72"
+                        autocomplete="new-password"
+                        :disabled="demoSubmitting"
+                        placeholder="6-72 个字符"
+                      />
+                    </label>
+                  </div>
+                  <button type="submit" class="demo-primary-btn" :disabled="demoSubmitting">
+                    <i :class="['fas', demoSubmitting ? 'fa-spinner fa-spin' : 'fa-toggle-on']"></i>
+                    {{ demoSubmitting ? '开启中' : '开启演示账户' }}
                   </button>
                 </form>
-                <button class="demo-danger-btn" :disabled="demoDeleting" @click="handleDeleteDemoUser">
-                  <i :class="['fas', demoDeleting ? 'fa-spinner fa-spin' : 'fa-trash']"></i>
-                  {{ demoDeleting ? '删除中' : '删除演示账户' }}
-                </button>
-              </div>
-            </template>
+                <div v-else class="demo-manage-area">
+                  <form class="demo-form" @submit.prevent="handleUpdateDemoPassword">
+                    <label class="demo-field">
+                      <span>新演示密码</span>
+                      <input
+                        v-model="demoPasswordForm.password"
+                        type="password"
+                        minlength="6"
+                        maxlength="72"
+                        autocomplete="new-password"
+                        :disabled="demoPasswordSubmitting"
+                        placeholder="输入新密码"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      class="demo-primary-btn"
+                      :disabled="demoPasswordSubmitting"
+                    >
+                      <i
+                        :class="['fas', demoPasswordSubmitting ? 'fa-spinner fa-spin' : 'fa-key']"
+                      ></i>
+                      {{ demoPasswordSubmitting ? '修改中' : '修改密码' }}
+                    </button>
+                  </form>
+                  <button
+                    class="demo-danger-btn"
+                    :disabled="demoDeleting"
+                    @click="handleDeleteDemoUser"
+                  >
+                    <i :class="['fas', demoDeleting ? 'fa-spinner fa-spin' : 'fa-trash']"></i>
+                    {{ demoDeleting ? '删除中' : '删除演示账户' }}
+                  </button>
+                </div>
+              </template>
+            </div>
           </div>
-        </div>
-        <div v-if="activeTab === 'about'" class="ios-section">
-          <div class="modal-scroll-content">
-            <div class="about-grid">
-              <div class="about-card">
-                <h3 class="about-card-title">
-                  <i class="fas fa-info-circle"></i>
-                  关于
-                </h3>
-                <p class="about-intro">
-                  {{ APP_CONFIG.appName }}
-                  是一款动漫追番记录管理工具，帮助用户追踪已看完、最喜欢和正在追的动漫作品。
-                  支持封面图片上传、分类筛选、数据数据统计等功能。
-                </p>
-              </div>
-              <div class="about-card">
-                <h3 class="about-card-title">
-                  <i class="fas fa-clipboard-list"></i>
-                  项目信息
-                </h3>
-                <table class="about-table">
-                  <tbody>
-                    <tr><td class="about-td-label">版本号</td><td>{{ APP_CONFIG.version }}</td></tr>
-                    <tr><td class="about-td-label">发布时间</td><td>{{ APP_CONFIG.releaseDate }}</td></tr>
-                    <tr><td class="about-td-label">技术栈</td><td>{{ APP_CONFIG.techStack }}</td></tr>
-                    <tr><td class="about-td-label">运行环境</td><td>生产环境 (Production)</td></tr>
-                    <tr><td class="about-td-label">开发者</td><td>{{ APP_CONFIG.author }}</td></tr>
-                    <tr><td class="about-td-label">开源地址</td><td><a :href="APP_CONFIG.github" target="_blank" rel="noopener noreferrer">{{ APP_CONFIG.github }}</a></td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="about-card">
-                <h3 class="about-card-title">
-                  <i class="fas fa-cubes"></i>
-                  生产环境依赖
-                </h3>
-                <table class="about-table">
-                  <tbody>
-                    <tr v-for="dep in deps" :key="dep.name">
-                      <td class="about-td-label">{{ dep.name }}</td>
-                      <td>{{ dep.version }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+          <div v-if="activeTab === 'about'" class="ios-section">
+            <div class="modal-scroll-content">
+              <div class="about-grid">
+                <div class="about-card">
+                  <h3 class="about-card-title">
+                    <i class="fas fa-info-circle"></i>
+                    关于
+                  </h3>
+                  <p class="about-intro">
+                    {{ APP_CONFIG.appName }}
+                    是一款动漫追番记录管理工具，帮助用户追踪已看完、最喜欢和正在追的动漫作品。
+                    支持封面图片上传、分类筛选、数据数据统计等功能。
+                  </p>
+                </div>
+                <div class="about-card">
+                  <h3 class="about-card-title">
+                    <i class="fas fa-clipboard-list"></i>
+                    项目信息
+                  </h3>
+                  <table class="about-table">
+                    <tbody>
+                      <tr>
+                        <td class="about-td-label">版本号</td>
+                        <td>{{ APP_CONFIG.version }}</td>
+                      </tr>
+                      <tr>
+                        <td class="about-td-label">发布时间</td>
+                        <td>{{ APP_CONFIG.releaseDate }}</td>
+                      </tr>
+                      <tr>
+                        <td class="about-td-label">技术栈</td>
+                        <td>{{ APP_CONFIG.techStack }}</td>
+                      </tr>
+                      <tr>
+                        <td class="about-td-label">运行环境</td>
+                        <td>生产环境 (Production)</td>
+                      </tr>
+                      <tr>
+                        <td class="about-td-label">开发者</td>
+                        <td>{{ APP_CONFIG.author }}</td>
+                      </tr>
+                      <tr>
+                        <td class="about-td-label">开源地址</td>
+                        <td>
+                          <a :href="APP_CONFIG.github" target="_blank" rel="noopener noreferrer">{{
+                            APP_CONFIG.github
+                          }}</a>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="about-card">
+                  <h3 class="about-card-title">
+                    <i class="fas fa-cubes"></i>
+                    生产环境依赖
+                  </h3>
+                  <table class="about-table">
+                    <tbody>
+                      <tr v-for="dep in deps" :key="dep.name">
+                        <td class="about-td-label">{{ dep.name }}</td>
+                        <td>{{ dep.version }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </section>
     <AnimeModal
       :visible="detailVisible"
       :anime="currentAnime"
@@ -339,34 +348,43 @@
       :source-img="sourceImg"
       @close="detailVisible = false"
     />
-    <AnimeTimelineMode
-      v-if="timelineModeVisible"
-      @close="closeTimelineMode"
-    />
+    <AnimeTimelineMode v-if="timelineModeVisible" @close="closeTimelineMode" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } from 'vue';
-import { useRouter } from 'vue-router';
+import {
+  ref,
+  reactive,
+  shallowReactive,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  defineAsyncComponent
+} from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import AppSidebar from '@/components/layout/AppSidebar.vue';
 import AppHeader from '@/components/layout/AppHeader.vue';
-import AnimeCard from '@/components/common/AnimeCard.vue';
+import VirtualAnimeLibrary from '@/components/common/VirtualAnimeLibrary.vue';
+import WorkspaceTabs from '@/components/layout/WorkspaceTabs.vue';
+import AppearanceSettings from '@/components/settings/AppearanceSettings.vue';
+import { getWorkspaceTab } from '@/utils/workspace';
 import AnimeModal from '@/components/common/AnimeModal.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import { animeApi, demoUserApi } from '@/api/anime';
-import { useAppStore } from '@/stores/app';
 import { useAuthStore } from '@/stores/auth';
 import { APP_CONFIG } from '@/utils/constants';
 import { useNotify } from '@/composables/useNotify';
-const timelineBgUrl = '/img/bg2.png';
+const timelineBgUrl = '/img/timeline.webp';
 
 /** 动态导入echarts以减小主chunk体积 */
 let echartsModule = null;
 async function loadECharts() {
   if (!echartsModule) {
     try {
-      echartsModule = await import('echarts');
+      echartsModule = await import('@/utils/charts');
     } catch {
       return null;
     }
@@ -375,16 +393,26 @@ async function loadECharts() {
 }
 
 const router = useRouter();
-const appStore = useAppStore();
+const route = useRoute();
+const mainContainer = ref(null);
+const adminView = ref(null);
+const scrollPositions = new Map();
+const loadError = ref('');
+const summaryCounts = ref(null);
+const AdminView = defineAsyncComponent(() => import('@/views/AdminView.vue'));
 const authStore = useAuthStore();
 const { message, confirm } = useNotify();
-const AnimeTimelineMode = defineAsyncComponent(() => import('@/components/stats/AnimeTimelineMode.vue'));
+const AnimeTimelineMode = defineAsyncComponent(
+  () => import('@/components/stats/AnimeTimelineMode.vue')
+);
 
 const isDemoAccount = computed(() => authStore.isDemo);
 
-const activeTab = ref('finished');
+const activeTab = ref(getWorkspaceTab(route.query.view).key);
+const currentTab = computed(() => getWorkspaceTab(activeTab.value));
+const isLibraryTab = computed(() => ['finished', 'favorite', 'watching'].includes(activeTab.value));
 const loading = ref(false);
-const pageTitle = ref('已看完');
+const pageTitle = computed(() => currentTab.value.label);
 const detailVisible = ref(false);
 const timelineModeVisible = ref(false);
 const currentAnime = ref(null);
@@ -450,7 +478,9 @@ function normalizeStatSeries(labels, values, fallbackLabels, maxItems) {
   );
 
   return {
-    labels: Array.from({ length }, (_, index) => String(sourceLabels[index] ?? fallbackLabels[index] ?? '')),
+    labels: Array.from({ length }, (_, index) =>
+      String(sourceLabels[index] ?? fallbackLabels[index] ?? '')
+    ),
     values: Array.from({ length }, (_, index) => toSafeStatNumber(sourceValues[index]))
   };
 }
@@ -678,12 +708,6 @@ const annualChartDom = ref(null);
 let weeklyChart = null;
 let annualChart = null;
 
-/** 背景选项 */
-const bgOptions = [
-  { value: 'solid', label: '纯白' },
-  { value: 'image', label: '壁纸' }
-];
-
 /** 生产环境依赖列表 */
 const deps = [
   { name: 'vue', version: '3.4.27' },
@@ -696,12 +720,56 @@ const deps = [
 ];
 
 /** Keep-Alive数据缓存 */
-const cachedData = reactive({
+const cachedData = shallowReactive({
   finished: null,
   favorite: null,
   watching: null,
   stats: null
 });
+
+const currentLibraryData = computed(() => cachedData[activeTab.value]);
+const libraryGroups = computed(() =>
+  activeTab.value === 'finished'
+    ? currentLibraryData.value?.groupedAnimes || []
+    : [{ animes: currentLibraryData.value?.animes || [] }]
+);
+const tabCounts = computed(() => ({
+  finished:
+    cachedData.finished?.groupedAnimes?.reduce(
+      (sum, group) => sum + (group.animes?.length || 0),
+      0
+    ) ?? summaryCounts.value?.totalFinished,
+  favorite: cachedData.favorite?.total ?? summaryCounts.value?.totalFavorite,
+  watching: cachedData.watching?.total ?? summaryCounts.value?.totalWatching
+}));
+
+let summaryRequest = 0;
+
+async function loadSummary() {
+  const request = ++summaryRequest;
+  try {
+    const response = await animeApi.getStatsMain();
+    if (request === summaryRequest) summaryCounts.value = response.data;
+  } catch {
+    /* 总数读取失败不阻塞片库。 */
+  }
+}
+
+/** 管理写入后使所有分类失效，防止返回片库仍显示旧记录。 */
+function invalidateLibrary() {
+  dataRevision++;
+  for (const key of Object.keys(cachedData)) cachedData[key] = null;
+  scrollPositions.clear();
+  loadSummary();
+}
+
+async function refreshActiveTab() {
+  if (activeTab.value === 'admin') return adminView.value?.refresh();
+  if (activeTab.value === 'settings') return loadDemoAccount();
+  if (activeTab.value === 'about') return;
+  cachedData[activeTab.value] = null;
+  await Promise.all([loadTabData(activeTab.value), loadSummary()]);
+}
 
 /** 统计页展示摘要，统一从已清洗缓存中派生，避免模板层重复计算 */
 const statsSummary = computed(() => {
@@ -723,9 +791,10 @@ const statsSummary = computed(() => {
     weeklyPeak: weeklyValues.reduce((peak, value) => Math.max(peak, toSafeStatNumber(value)), 0),
     annualTotal: annualValues.reduce((sum, value) => sum + toSafeStatNumber(value), 0),
     currentMonthValue: toSafeStatNumber(annualValues[currentMonthIndex]),
-    peakMonth: annualValues.length > 0 && annualValues[peakIndex] > 0
-      ? String(annualLabels[peakIndex] || MONTH_LABELS[peakIndex] || '暂无')
-      : '暂无'
+    peakMonth:
+      annualValues.length > 0 && annualValues[peakIndex] > 0
+        ? String(annualLabels[peakIndex] || MONTH_LABELS[peakIndex] || '暂无')
+        : '暂无'
   };
 });
 
@@ -764,32 +833,45 @@ const statsMetricCards = computed(() => [
  * 处理Tab切换
  */
 function handleTabChange(item) {
-  activeTab.value = item.key;
-  pageTitle.value = item.label;
-
-  // 滚动到顶部
-  const main = document.querySelector('.app-main');
-  if (main) main.scrollTop = 0;
-
-  if (item.key === 'settings') {
-    loadDemoAccount(true);
-  }
-
-  // 检查缓存
-  if (!cachedData[item.key]) {
-    loadTabData(item.key);
-  } else if (item.key === 'stats') {
-    // 统计页需要重新渲染图表
-    nextTick(() => {
-      renderCharts();
-    });
-  }
+  if (item.key !== activeTab.value) router.push({ path: '/', query: { view: item.key } });
 }
+
+watch(
+  () => route.query.view,
+  async (value, _previous, onCleanup) => {
+    let cancelled = false;
+    onCleanup(() => {
+      cancelled = true;
+    });
+    scrollPositions.set(activeTab.value, mainContainer.value?.scrollTop || 0);
+    disposeCharts();
+    activeTab.value = getWorkspaceTab(value).key;
+    loadError.value = '';
+    loading.value = false;
+    if (activeTab.value === 'settings') loadDemoAccount(true);
+    if (['finished', 'favorite', 'watching', 'stats'].includes(activeTab.value)) {
+      if (!cachedData[activeTab.value]) await loadTabData(activeTab.value);
+      else if (activeTab.value === 'stats') nextTick(renderCharts);
+    }
+    await nextTick();
+    if (cancelled) return;
+    if (mainContainer.value)
+      mainContainer.value.scrollTop = scrollPositions.get(activeTab.value) || 0;
+  }
+);
+
+let dataRevision = 0;
+const pendingTabs = new Map();
 
 /**
  * 加载各Tab数据
  */
 async function loadTabData(tabName) {
+  if (!['finished', 'favorite', 'watching', 'stats'].includes(tabName)) return;
+  const revision = dataRevision;
+  const request = Symbol(tabName);
+  pendingTabs.set(tabName, request);
+  loadError.value = '';
   loading.value = true;
 
   try {
@@ -800,6 +882,7 @@ async function loadTabData(tabName) {
         animeApi.getStatsAnnual()
       ]);
 
+      if (revision !== dataRevision || pendingTabs.get(tabName) !== request) return;
       const weeklySeries = normalizeStatSeries(
         weeklyRes?.data?.labels,
         weeklyRes?.data?.values,
@@ -826,16 +909,16 @@ async function loadTabData(tabName) {
       nextTick(() => {
         renderCharts();
       });
-    } else if (tabName === 'about' || tabName === 'settings' || tabName === 'demo-user') {
-      // 无需加载数据
     } else {
       const res = await animeApi.getMainList(tabName);
+      if (revision !== dataRevision || pendingTabs.get(tabName) !== request) return;
       cachedData[tabName] = res.data;
     }
   } catch (err) {
-    message({ content: '数据加载失败，请检查网络或后端服务', type: 'error' });
+    if (activeTab.value === tabName)
+      loadError.value = '数据加载失败，请检查后端服务地址或网络连接。';
   } finally {
-    loading.value = false;
+    if (activeTab.value === tabName && pendingTabs.get(tabName) === request) loading.value = false;
   }
 }
 
@@ -843,7 +926,7 @@ async function loadTabData(tabName) {
  * 渲染ECharts图表
  */
 async function renderCharts() {
-  if (!cachedData.stats) return;
+  if (!cachedData.stats || activeTab.value !== 'stats') return;
 
   const weeklyDom = weeklyChartDom.value;
   const annualDom = annualChartDom.value;
@@ -884,7 +967,7 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
   if (!dom) return existingChart || null;
 
   const echarts = await loadECharts();
-  if (!echarts) return existingChart || null;
+  if (!echarts || !dom.isConnected || activeTab.value !== 'stats') return null;
 
   // 销毁旧实例，防止重复 init 造成内存泄露与 resize 异常。
   if (existingChart) {
@@ -894,6 +977,7 @@ async function renderChart(dom, labels, values, colorTop, colorBottom, existingC
   const chart = echarts.init(dom);
 
   const option = {
+    animation: false,
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -981,27 +1065,18 @@ function closeTimelineMode() {
   timelineModeVisible.value = false;
 }
 
-/**
- * 处理主题切换
- */
-function handleThemeChange(theme) {
-  appStore.setBgTheme(theme);
-  if (theme === 'solid') {
-    document.body.classList.add('theme-solid-color');
-  } else {
-    document.body.classList.remove('theme-solid-color');
-  }
-  message({ content: '外观设置已保存', type: 'success' });
-}
-
-// 初始化背景主题
 onMounted(() => {
-  if (appStore.bgTheme === 'solid') {
-    document.body.classList.add('theme-solid-color');
-  }
-  // 加载默认Tab
-  loadTabData('finished');
+  loadTabData(activeTab.value);
+  loadSummary();
+  if (activeTab.value === 'settings') loadDemoAccount(true);
 });
+
+function disposeCharts() {
+  weeklyChart?.dispose();
+  annualChart?.dispose();
+  weeklyChart = null;
+  annualChart = null;
+}
 
 /**
  * 窗口resize时重绘图表（使用防抖）
@@ -1018,6 +1093,8 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 
 onBeforeUnmount(() => {
+  dataRevision++;
+  summaryRequest++;
   window.removeEventListener('resize', handleResize);
   clearTimeout(resizeTimer);
   // 销毁图表实例
@@ -1033,14 +1110,99 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  position: relative;
+}
+.app-main {
+  background: rgba(248, 250, 253, 0.92);
+  scrollbar-gutter: stable;
+}
+.content-section {
+  flex-shrink: 0;
+}
+.collection-banner {
+  height: 136px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px;
+  border: 1px solid #dbe4ed;
+  border-left: 3px solid #7095be;
+  background:
+    linear-gradient(90deg, #edf3fa 4%, #edf3faeb 40%, #edf3fa33),
+    url('/img/manga-wallpaper.webp') 70% 42% / cover;
+}
+.banner-copy > span {
+  color: #6b89ad;
+  font-size: 8px;
+  letter-spacing: 2px;
+}
+.banner-copy h2 {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  margin: 12px 0 9px;
+  color: #465f80;
+}
+.banner-copy p {
+  font-size: 10px;
+  color: #8999af;
+}
+.banner-mark {
+  writing-mode: vertical-rl;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: #6d82a0;
+}
+.workspace-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: #fff4f3;
+  border: 1px solid #efc8c4;
+  color: #ad4d43;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+.management-main {
+  overflow: hidden;
+}
+.management-content {
+  padding: 0 !important;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.stats-dashboard-header {
+  display: none !important;
+}
+.stats-dashboard-shell {
+  max-width: none !important;
+}
+.demo-account-box {
+  max-width: 850px !important;
+  border: 1px solid var(--border);
+  background: #fff !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 .app-container {
   display: flex;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
 }
 
 .app-main {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1053,7 +1215,7 @@ onBeforeUnmount(() => {
 }
 
 .content-section {
-  padding: 0 50px 80px;
+  padding: 0 32px 36px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -1508,7 +1670,10 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 24px;
   text-align: left;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .stats-timeline-entry::before {
@@ -1717,7 +1882,10 @@ onBeforeUnmount(() => {
   outline: none;
   padding: 0 12px;
   box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .demo-field input:focus {
@@ -1743,7 +1911,10 @@ onBeforeUnmount(() => {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .demo-primary-btn {
@@ -1799,12 +1970,16 @@ onBeforeUnmount(() => {
   border: 1px solid var(--liquid-border);
   box-shadow: var(--liquid-shadow), var(--liquid-highlight);
   padding: 32px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .about-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
 }
 
 .about-card-title {

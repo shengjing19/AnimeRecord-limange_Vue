@@ -1,17 +1,66 @@
 <template>
-  <div class="login-page">
-    <div class="background" aria-hidden="true">
+  <div class="login-page" :class="{ 'console-login': appStore.loginStyle === 'console' }">
+    <div class="login-options">
+      <button
+        type="button"
+        @click="appStore.setLoginStyle(appStore.loginStyle === 'console' ? 'native' : 'console')"
+      >
+        {{ appStore.loginStyle === 'console' ? '原生登录' : '控制台登录' }}</button
+      ><button type="button" @click="showServerSettings = !showServerSettings">服务器设置</button>
+    </div>
+    <div v-if="showServerSettings" class="login-server-panel">
+      <ServerSettings input-id="login-server-url" /><button
+        class="server-panel-close"
+        aria-label="关闭服务器设置"
+        @click="showServerSettings = false"
+      >
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <section v-if="appStore.loginStyle === 'console'" class="console-art" aria-label="漫画插画">
+      <div class="art-label">
+        <span>THE PERSONAL ANIME ARCHIVE</span><span>01 / COLLECTION</span>
+      </div>
+      <div class="art-copy">
+        <span class="art-kicker">物語を、ここに。</span>
+        <h1>每一个好故事，<br />都值得收藏<span>。</span></h1>
+        <p>记录你的热爱，留住每一次心动。<br />欢迎回到你的动漫世界。</p>
+        <div class="art-rule"></div>
+        <span class="art-footer">limange <span> / </span> YOUR STORIES LIVE HERE.</span>
+      </div>
+      <span class="art-side-text" aria-hidden="true">思い出のコレクション</span>
+    </section>
+    <div v-if="appStore.loginStyle === 'native'" class="background" aria-hidden="true">
       <div
         v-for="i in columnCount"
         :key="i"
         class="waterfall-column"
-        :ref="(el) => { if (el) columns[i - 1] = el }"
-      >
-      </div>
+        :ref="
+          (el) => {
+            if (el) columns[i - 1] = el;
+          }
+        "
+      ></div>
     </div>
-    <img src="/img/animerecode.png" alt="Anime Record Logo" class="login-logo" />
+    <img
+      v-if="appStore.loginStyle === 'native'"
+      src="/img/animerecode.png"
+      alt="Anime Record Logo"
+      class="login-logo"
+    />
     <div class="newlogin" :class="{ 'register-mode': authMode === AUTH_MODE.REGISTER }">
-      <img src="/img/UsersIcon.png" class="newico" alt="用户头像图标" />
+      <div v-if="appStore.loginStyle === 'console'" class="console-form-heading">
+        <img src="/img/app-icon.png" alt="limange" /><span>WELCOME BACK</span>
+        <h2>{{ authMode === AUTH_MODE.LOGIN ? '登录你的收藏室' : '创建你的收藏室' }}</h2>
+        <p>
+          {{
+            authMode === AUTH_MODE.LOGIN
+              ? '很高兴见到你，故事从这里继续。'
+              : '首次使用？创建管理员账户以开始记录。'
+          }}
+        </p>
+      </div>
+      <img v-else src="/img/UsersIcon.png" class="newico" alt="用户头像图标" />
       <div class="auth-form-viewport">
         <form
           class="auth-form-panel login-panel"
@@ -25,6 +74,7 @@
             type="text"
             class="newpass"
             placeholder="输入用户名"
+            aria-label="用户名"
             autocomplete="username"
             :maxlength="MAX_USERNAME_LENGTH"
             :disabled="isLoginSubmitting"
@@ -37,6 +87,7 @@
               :type="showLoginPassword ? 'text' : 'password'"
               class="newpass"
               placeholder="输入密码"
+              aria-label="密码"
               autocomplete="current-password"
               :maxlength="MAX_PASSWORD_LENGTH"
               :disabled="isLoginSubmitting"
@@ -61,10 +112,21 @@
                 aria-label="提交登录"
                 :disabled="isLoginSubmitting"
               >
-                <i :class="['fa-solid', isLoginSubmitting ? 'fa-spinner fa-spin' : 'fa-arrow-right']"></i>
+                <i
+                  :class="['fa-solid', isLoginSubmitting ? 'fa-spinner fa-spin' : 'fa-arrow-right']"
+                ></i>
               </button>
             </div>
           </div>
+          <button
+            v-if="appStore.loginStyle === 'console'"
+            type="submit"
+            class="console-submit"
+            :disabled="isLoginSubmitting"
+          >
+            <span>{{ isLoginSubmitting ? '正在登录…' : '登录' }}</span
+            ><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
         </form>
         <form
           class="auth-form-panel register-panel"
@@ -79,6 +141,7 @@
             type="text"
             class="newpass"
             placeholder="初始化用户名"
+            aria-label="初始化用户名"
             autocomplete="username"
             :maxlength="MAX_USERNAME_LENGTH"
             :disabled="isRegisterSubmitting || isRegisterConfirming"
@@ -91,6 +154,7 @@
               :type="showRegisterPassword ? 'text' : 'password'"
               class="newpass"
               placeholder="初始化密码"
+              aria-label="初始化密码"
               autocomplete="new-password"
               :maxlength="MAX_PASSWORD_LENGTH"
               :disabled="isRegisterSubmitting || isRegisterConfirming"
@@ -115,10 +179,24 @@
                 aria-label="提交系统初始化注册"
                 :disabled="isRegisterSubmitting || isRegisterConfirming"
               >
-                <i :class="['fa-solid', isRegisterSubmitting ? 'fa-spinner fa-spin' : 'fa-user-plus']"></i>
+                <i
+                  :class="[
+                    'fa-solid',
+                    isRegisterSubmitting ? 'fa-spinner fa-spin' : 'fa-user-plus'
+                  ]"
+                ></i>
               </button>
             </div>
           </div>
+          <button
+            v-if="appStore.loginStyle === 'console'"
+            type="submit"
+            class="console-submit"
+            :disabled="isRegisterSubmitting || isRegisterConfirming"
+          >
+            <span>{{ isRegisterSubmitting ? '正在创建…' : '创建管理员账户' }}</span
+            ><i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+          </button>
         </form>
       </div>
       <div class="login-tip-row">
@@ -143,6 +221,9 @@
           返回登录
         </button>
       </div>
+      <div v-if="appStore.loginStyle === 'console'" class="console-form-note">
+        <i class="fa-solid fa-lock" aria-hidden="true"></i> 连接到你自己的动漫服务
+      </div>
       <div v-if="activeErrorMsg" class="login-error" role="alert">{{ activeErrorMsg }}</div>
     </div>
     <div class="version-info">
@@ -158,16 +239,20 @@
  * @module LoginView
  * @description 登录页面逻辑，包括背景动画初始化、表单校验以及登录接口请求
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { authApi } from '@/api/anime';
 import { useAuthStore } from '@/stores/auth';
 import { useNotify } from '@/composables/useNotify';
 import { APP_CONFIG } from '@/utils/constants';
+import { useAppStore } from '@/stores/app';
+import ServerSettings from '@/components/settings/ServerSettings.vue';
 import { shuffleArray } from '@/utils/helpers';
 
 // 路由与状态库实例化
 const router = useRouter();
+const appStore = useAppStore();
+const showServerSettings = ref(false);
 const authStore = useAuthStore();
 const notify = useNotify();
 
@@ -212,13 +297,13 @@ const activeErrorMsg = computed(() =>
   authMode.value === AUTH_MODE.LOGIN ? loginErrorMsg.value : registerErrorMsg.value
 );
 
-/** 
+/**
  * 桌面端使用四列瀑布流背景
  */
 const columnCount = ref(4);
 
-/** 
- * 瀑布流列DOM引用，使用 shallowRef 提升性能，避免深层代理 
+/**
+ * 瀑布流列DOM引用，使用 shallowRef 提升性能，避免深层代理
  * @type {import('vue').ShallowRef<HTMLElement[]>}
  */
 const columns = shallowRef([]);
@@ -227,9 +312,9 @@ const columns = shallowRef([]);
  * 瀑布流背景图片URL列表
  * @constant {string[]}
  */
-const imageUrls = Array.from({ length: 21 }, (_, i) => `/img/anime/${i + 1}.jpg`);
+const imageUrls = Array.from({ length: 21 }, (_, i) => `/img/login/${i + 1}.webp`);
 
-/** 
+/**
  * 组件挂载状态，用于控制异步流程
  */
 const isMounted = ref(false);
@@ -243,6 +328,7 @@ const isMounted = ref(false);
  * 3. 延迟动画触发，确保 Safari 正确计算容器高度（解决 -50% 塌陷问题）。
  */
 async function initWaterfall() {
+  if (appStore.loginStyle !== 'native') return;
   const cols = columns.value.slice(0, columnCount.value).filter(Boolean);
   if (cols.length === 0) return;
 
@@ -254,19 +340,20 @@ async function initWaterfall() {
       (url) =>
         new Promise((resolve) => {
           const img = new Image();
-          img.src = url;
+          img.decoding = 'async';
           img.onload = () => resolve(img);
           img.onerror = () => resolve(null);
+          img.src = url;
         })
     )
   );
 
   // 异步加载后检查组件是否还处于挂载状态
-  if (!isMounted.value) return;
+  if (!isMounted.value || appStore.loginStyle !== 'native') return;
 
   // 构造 DOM (使用 Fragment 提升性能)
   const columnFragments = cols.map(() => document.createDocumentFragment());
-  
+
   images.forEach((img, index) => {
     if (!img) return;
     const colIndex = index % cols.length;
@@ -280,21 +367,19 @@ async function initWaterfall() {
     column.replaceChildren();
     const track = document.createElement('div');
     track.className = 'scroll-track';
-    
+
     const wrapper = document.createElement('div');
     wrapper.className = 'column-wrapper';
     wrapper.appendChild(columnFragments[i]);
-    
+
     track.appendChild(wrapper);
     // 复制一份用于实现无缝循环
     track.appendChild(wrapper.cloneNode(true));
     column.appendChild(track);
-    
+
     // 延迟启动动画 (解决 WebKit 下高度计算为 0 的问题)
     requestAnimationFrame(() => {
       if (!isMounted.value) return;
-      // 强制触发一次重绘，确保浏览器识别到新高度
-      void track.offsetHeight;
       track.classList.add('is-active');
     });
   });
@@ -477,6 +562,15 @@ async function handleRegister() {
   }
 }
 
+watch(
+  () => appStore.loginStyle,
+  async () => {
+    columns.value = [];
+    await nextTick();
+    initWaterfall().catch(() => {});
+  }
+);
+
 // 组件挂载完成
 onMounted(() => {
   isMounted.value = true;
@@ -497,7 +591,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   background-color: #1a1a1a;
   background-repeat: no-repeat;
@@ -584,7 +679,6 @@ onBeforeUnmount(() => {
 }
 
 @keyframes scroll {
-
   0% {
     transform: translateY(0);
   }
@@ -700,7 +794,10 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.2);
 
   /* 增加细微边框增强轮廓与对比度 */
-  transition: transform 0.15s ease-in-out, background 0.2s ease, border-color 0.2s;
+  transition:
+    transform 0.15s ease-in-out,
+    background 0.2s ease,
+    border-color 0.2s;
   margin-top: 5px;
   padding: 4px 12px;
   outline: none;
@@ -773,7 +870,8 @@ input.newpass::placeholder {
   outline: none;
 }
 
-.inline-action-btn:hover, .inline-action-btn:focus-visible {
+.inline-action-btn:hover,
+.inline-action-btn:focus-visible {
   background: rgba(255, 255, 255, 1);
   color: #000;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
@@ -802,7 +900,10 @@ input.newpass::placeholder {
 .newlogintip {
   color: white;
   margin: 0;
-  text-shadow: 2px 2px 8px #000, 0px 0px 4px #000, -2px -2px 8px #000;
+  text-shadow:
+    2px 2px 8px #000,
+    0px 0px 4px #000,
+    -2px -2px 8px #000;
   opacity: 0.75;
   font-size: 15px;
   user-select: none;
@@ -819,8 +920,12 @@ input.newpass::placeholder {
   padding: 2px 0;
   text-decoration: underline;
   text-underline-offset: 3px;
-  text-shadow: 2px 2px 8px #000, 0 0 4px #000;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  text-shadow:
+    2px 2px 8px #000,
+    0 0 4px #000;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .register-link:hover,
@@ -858,5 +963,297 @@ input.newpass::placeholder {
   opacity: 0.9;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.7);
   user-select: none;
+}
+</style>
+
+<style scoped>
+.login-options {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  display: flex;
+  gap: 17px;
+  z-index: 5;
+}
+.login-options button {
+  background: none;
+  border: none;
+  color: #9aaabe;
+  font-size: 10px;
+}
+.login-options button:hover {
+  color: #4495de;
+}
+.login-server-panel {
+  position: absolute;
+  top: 58px;
+  right: 24px;
+  z-index: 10;
+  width: min(500px, 90vw);
+  box-shadow: 0 15px 50px #13233825;
+}
+.server-panel-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: #7a899a;
+}
+.console-login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  background: #fafbfd;
+  align-items: stretch;
+}
+.console-art {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #d4dfe9;
+  background:
+    linear-gradient(180deg, #e2ebf522 0%, #f3f7f98c 48%, #eef4fb 95%),
+    url('/img/manga-wallpaper.webp') 62% center / cover;
+  border-left: 3px solid #4d88c1;
+  overflow: hidden;
+}
+.art-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 27px 36px;
+  font-size: 8px;
+  letter-spacing: 1.8px;
+  color: #476283;
+  background: #ffffff35;
+}
+.art-copy {
+  position: relative;
+  margin-top: auto;
+  padding: 65px 55px 40px;
+}
+.art-kicker {
+  display: inline-block;
+  font-size: 12px;
+  color: #486788;
+  letter-spacing: 5px;
+  margin-bottom: 22px;
+}
+.art-copy h1 {
+  font-size: clamp(30px, 3.2vw, 50px);
+  font-weight: 500;
+  line-height: 1.6;
+  color: #304d70;
+  letter-spacing: 3px;
+}
+.art-copy h1 > span {
+  color: #3d91d8;
+}
+.art-copy p {
+  font-size: 12px;
+  line-height: 2.1;
+  color: #698099;
+  margin-top: 22px;
+}
+.art-rule {
+  width: 44px;
+  height: 2px;
+  background: #839db9;
+  margin-top: 40px;
+  margin-bottom: 22px;
+}
+.art-footer {
+  font-size: 10px;
+  color: #69809b;
+  letter-spacing: 2px;
+}
+.art-footer span {
+  margin: 0 9px;
+}
+.art-side-text {
+  position: absolute;
+  right: 30px;
+  top: 25%;
+  writing-mode: vertical-rl;
+  letter-spacing: 8px;
+  color: #4e6e90;
+  font-size: 12px;
+}
+.console-login .newlogin {
+  position: relative;
+  inset: auto;
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  justify-content: center;
+  padding: 60px 48px;
+  overflow-y: auto;
+}
+.console-form-heading > img {
+  width: 46px;
+  height: 46px;
+  display: block;
+  object-fit: contain;
+  margin-bottom: 35px;
+}
+.console-form-heading > span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #8495ac;
+}
+.console-form-heading h2 {
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  margin: 12px 0 10px;
+  color: #34465c;
+}
+.console-form-heading p {
+  font-size: 11px;
+  color: #909cad;
+  margin-bottom: 30px;
+}
+.console-login .auth-form-viewport {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  display: block;
+  margin: 0;
+}
+.console-login .auth-form-panel {
+  position: static;
+  width: 100%;
+  transform: none;
+  opacity: 1;
+  filter: none;
+  display: flex;
+  align-items: stretch;
+  gap: 17px;
+  transition: none;
+  will-change: auto;
+}
+.console-login .auth-form-panel[aria-hidden='true'] {
+  display: none;
+}
+.console-login .newpass {
+  width: 100%;
+  height: 42px;
+  margin: 0;
+  padding: 0 13px;
+  background: #fff;
+  border: 1px solid #d7e0e9;
+  border-radius: 2px;
+  color: #47566b;
+  font-size: 12px;
+  backdrop-filter: none;
+}
+.console-login .newpass::placeholder {
+  color: #9eaabd;
+}
+.console-login .newpass:focus {
+  outline: 2px solid #bdd7ef;
+  outline-offset: 0;
+  border-color: #70a9db;
+}
+.console-login .password-wrapper {
+  width: 100%;
+  margin: 0;
+}
+.console-login .inline-actions {
+  right: 10px;
+}
+.console-login .inline-actions .submit-btn {
+  display: none;
+}
+.console-login .inline-action-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: #7b8ea5;
+}
+.console-submit {
+  height: 42px;
+  margin-top: 7px;
+  border: 1px solid #297cbf;
+  border-radius: 2px;
+  background: #3284c9;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  font-size: 12px;
+}
+.console-submit:hover {
+  background: #2575b8;
+}
+.console-login .login-tip-row {
+  margin-top: 22px;
+  display: block;
+  text-align: center;
+}
+.console-login .newlogintip {
+  display: none;
+}
+.console-login .register-link {
+  color: #6d839e;
+  font-size: 11px;
+  text-shadow: none;
+}
+.console-form-note {
+  margin-top: 37px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e7ef;
+  font-size: 10px;
+  color: #9aabba;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.console-login .login-error {
+  position: static;
+  padding: 12px;
+  background: #fff0ef;
+  color: #ba5850;
+  font-size: 11px;
+  border: 1px solid #f1d3cf;
+  max-width: none;
+  width: 100%;
+  margin-top: 18px;
+  text-shadow: none;
+}
+.console-login .version-info {
+  display: none;
+}
+@media (max-width: 1050px) {
+  .console-login {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+  .console-login .newlogin {
+    padding: 60px 32px;
+  }
+  .art-copy {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  .art-label span:last-child {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .console-login {
+    grid-template-columns: 1fr;
+  }
+  .console-art {
+    display: none;
+  }
+  .console-login .newlogin {
+    max-width: 420px;
+    margin: auto;
+    height: 100%;
+  }
 }
 </style>

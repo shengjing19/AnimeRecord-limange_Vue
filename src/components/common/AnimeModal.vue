@@ -32,12 +32,7 @@
         <!-- 模糊背景头图 -->
         <div class="detail-header">
           <div class="detail-header-bg" v-if="posterReady">
-            <img
-              :src="coverUrl"
-              class="detail-header-bg-img"
-              alt=""
-              aria-hidden="true"
-            />
+            <img :src="coverUrl" class="detail-header-bg-img" alt="" aria-hidden="true" />
             <div class="detail-header-blur"></div>
           </div>
           <div class="detail-header-fade"></div>
@@ -69,9 +64,7 @@
 
         <!-- 简介 -->
         <div class="detail-description">
-          <h3 class="detail-section-title">
-            <i class="fas fa-align-left"></i> 简介
-          </h3>
+          <h3 class="detail-section-title"><i class="fas fa-align-left"></i> 简介</h3>
           <p class="detail-desc-text">
             {{ anime?.description || '暂无简介' }}
           </p>
@@ -82,9 +75,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { createTimeline, cubicBezier } from 'animejs';
 import { getFullImageUrl } from '@/utils/constants';
+import { useAppStore } from '@/stores/app';
 
 const props = defineProps({
   /** 是否显示 */
@@ -98,6 +92,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+const appStore = useAppStore();
+const reducedMotion = () =>
+  appStore.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const overlayRef = ref(null);
 const posterRef = ref(null);
@@ -133,7 +130,7 @@ function close() {
   const targetPoster = posterRef.value;
   const src = props.sourceRect;
 
-  if (!overlay) {
+  if (!overlay || reducedMotion()) {
     flying.value = false;
     posterReady.value = false;
     if (props.sourceImg) {
@@ -194,20 +191,28 @@ function close() {
 
       activeTimeline = tl;
 
-      tl.add(overlay, {
-        opacity: [1, 0],
-        duration: 280,
-        ease
-      }, 0);
+      tl.add(
+        overlay,
+        {
+          opacity: [1, 0],
+          duration: 280,
+          ease
+        },
+        0
+      );
 
-      tl.add(flyEl.style, {
-        top: src.top,
-        left: src.left,
-        width: src.width,
-        height: src.height,
-        duration: 300,
-        ease
-      }, 0);
+      tl.add(
+        flyEl.style,
+        {
+          top: src.top,
+          left: src.left,
+          width: src.width,
+          height: src.height,
+          duration: 300,
+          ease
+        },
+        0
+      );
     });
     return;
   }
@@ -231,11 +236,15 @@ function close() {
 
   activeTimeline = tl;
 
-  tl.add(overlay, {
-    opacity: [1, 0],
-    duration: 250,
-    ease
-  }, 0);
+  tl.add(
+    overlay,
+    {
+      opacity: [1, 0],
+      duration: 250,
+      ease
+    },
+    0
+  );
 }
 
 /**
@@ -245,6 +254,13 @@ function playHeroAnimation() {
   const overlay = overlayRef.value;
 
   if (!overlay) return;
+  if (reducedMotion()) {
+    flying.value = false;
+    posterReady.value = true;
+    overlay.style.transform = 'none';
+    overlay.style.opacity = '1';
+    return;
+  }
 
   const src = props.sourceRect;
   const flyEl = flyingEl.value;
@@ -291,48 +307,65 @@ function playHeroAnimation() {
 
   activeTimeline = tl;
 
-  tl.add(overlay, {
-    translateY: ['100%', '0%'],
-    opacity: [0, 1],
-    duration: 420,
-    ease
-  }, 0);
+  tl.add(
+    overlay,
+    {
+      translateY: ['100%', '0%'],
+      opacity: [0, 1],
+      duration: 420,
+      ease
+    },
+    0
+  );
 
   if (hasFly && tgtRect) {
-    tl.add(flyEl.style, {
-      top: tgtRect.top,
-      left: tgtRect.left,
-      width: tgtRect.width,
-      height: tgtRect.height,
-      duration: 400,
-      ease
-    }, 0);
+    tl.add(
+      flyEl.style,
+      {
+        top: tgtRect.top,
+        left: tgtRect.left,
+        width: tgtRect.width,
+        height: tgtRect.height,
+        duration: 400,
+        ease
+      },
+      0
+    );
   }
 }
 
-watch(() => props.visible, async (val) => {
-  if (val) {
-    scrolled.value = false;
-    posterReady.value = false;
-    if (scrollRef.value) scrollRef.value.scrollTop = 0;
-    if (props.sourceRect) flying.value = true;
-    await nextTick();
+onBeforeUnmount(() => {
+  activeTimeline?.pause();
+  props.sourceImg?.style.removeProperty('opacity');
+  props.sourceImg?.style.removeProperty('transition');
+});
 
-    // 无源位置时直接显示海报
-    if (!props.sourceRect) posterReady.value = true;
+watch(
+  () => props.visible,
+  async (val) => {
+    if (val) {
+      scrolled.value = false;
+      posterReady.value = false;
+      if (scrollRef.value) scrollRef.value.scrollTop = 0;
+      if (props.sourceRect) flying.value = true;
+      await nextTick();
 
-    try {
-      playHeroAnimation();
-    } catch (e) {
-      flying.value = false;
-      posterReady.value = true;
-      if (overlayRef.value) {
-        overlayRef.value.style.transform = 'translateY(0)';
-        overlayRef.value.style.opacity = '1';
+      // 无源位置时直接显示海报
+      if (!props.sourceRect) posterReady.value = true;
+
+      try {
+        playHeroAnimation();
+      } catch (e) {
+        flying.value = false;
+        posterReady.value = true;
+        if (overlayRef.value) {
+          overlayRef.value.style.transform = 'translateY(0)';
+          overlayRef.value.style.opacity = '1';
+        }
       }
     }
   }
-});
+);
 </script>
 
 <style scoped>

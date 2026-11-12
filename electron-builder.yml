@@ -1,0 +1,44 @@
+appId: com.limange.desktop
+productName: limange
+copyright: Copyright © 2026 limange
+directories:
+  buildResources: build
+  output: release
+files:
+  - dist/**/*
+  - desktop/**/*
+  - shared/**/*
+  - build/icon.png
+  - package.json
+  - LICENSE
+  - '!node_modules/**/*'
+  - '!dist/fontawesome6.4.0/svgs/**/*'
+  - '!dist/fontawesome6.4.0/metadata/**/*'
+  - '!dist/fontawesome6.4.0/scss/**/*'
+  - '!dist/fontawesome6.4.0/less/**/*'
+  - '!dist/fontawesome6.4.0/js/**/*'
+  - '!dist/fontawesome6.4.0/sprites/**/*'
+  - '!dist/fontawesome6.4.0/webfonts/*.ttf'
+asar: true
+electronDist: node_modules/electron/dist
+npmRebuild: false
+win:
+  icon: build/icon.ico
+  target:
+    - target: portable
+      arch: [x64]
+    - target: nsis
+      arch: [x64]
+portable:
+  artifactName: limange-${version}-portable.${ext}
+nsis:
+  artifactName: limange-${version}-setup.${ext}
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: limange
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerLanguages: [zh_CN]

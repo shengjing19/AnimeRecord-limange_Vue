@@ -5,25 +5,18 @@
  * created 2026-05-31
  */
 
+import { getServerUrl } from './server';
+
 /** 应用基本信息 */
 export const APP_CONFIG = {
   appName: 'limange',
-  version: 'v1.0.2(Release)',
-  releaseDate: '2026-07-04',
-  techStack: 'Spring Boot 3.5 + Vue 3',
+  version: 'v1.1.0',
+  releaseDate: '2026-11-12',
+  techStack: 'Spring Boot 3.5 + Vue 3 + Electron',
   author: 'Shengjing19(Hisx12123)',
   copyright: '2020-2026 笙箫旧景 All rights reserved',
   github: 'https://github.com/shengjing19/'
 };
-
-/**
- * 后端API地址
- * 192.168.30.12
- * */
-export const API_BASE_URL = 'http://192.168.30.12:8231/api';
-
-/** 图片资源地址 */
-export const RESOURCE_BASE_URL = 'http://192.168.30.12:8231/';
 
 /**
  * 获取完整图片地址
@@ -32,6 +25,20 @@ export const RESOURCE_BASE_URL = 'http://192.168.30.12:8231/';
  */
 export function getFullImageUrl(path) {
   if (!path) return '/img/animerecode.png';
-  if (path.startsWith('http')) return path;
-  return RESOURCE_BASE_URL + path;
+  if (/^https?:\/\//i.test(path)) {
+    const serverPrefix = `${getServerUrl()}/`;
+    if (window.limangeDesktop && path.startsWith(serverPrefix))
+      return `/resource/${path.slice(serverPrefix.length)}`;
+    return path;
+  }
+  if (path.startsWith('blob:') || path.startsWith('data:image/')) return path;
+  return window.limangeDesktop
+    ? `/resource/${path.replace(/^\/+/, '')}`
+    : `${getServerUrl()}/${path.replace(/^\/+/, '')}`;
+}
+
+/** TMDB 公开封面使用匹配卡片尺寸的缩略图；详情继续使用原图。 */
+export function getCoverImageUrl(path) {
+  const full = getFullImageUrl(path);
+  return full.replace(/^(https?:\/\/image\.tmdb\.org\/t\/p\/)original\//, '$1w342/');
 }

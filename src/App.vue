@@ -1,30 +1,20 @@
 <template>
-  <!--
-    App.vue - 应用根组件
-    limange Vue 3 前端应用入口
-    by shengjing19(Hisx12123)
-    created 2026-05-31
-  -->
-  <router-view v-slot="{ Component }">
-    <KeepAlive :include="['HomeView', 'AdminView']">
-      <component :is="Component" />
-    </KeepAlive>
-  </router-view>
+  <div class="desktop-app">
+    <AppTitlebar />
+    <div class="app-route"><router-view /></div>
+  </div>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue';
+import { watchEffect } from 'vue';
+import AppTitlebar from '@/components/layout/AppTitlebar.vue';
+import { useAppStore } from '@/stores/app';
 
-onMounted(() => {
-  // 恢复背景主题
-  const savedTheme = localStorage.getItem('app_bg_theme') || 'image';
-  if (savedTheme === 'solid') {
-    document.body.classList.add('theme-solid-color');
-  }
-});
+const appStore = useAppStore();
 
-onBeforeUnmount(() => {
-  // 卸载时清除可能残留的 body class
-  document.body.classList.remove('theme-solid-color');
+watchEffect(() => {
+  document.body.dataset.background = appStore.bgTheme;
+  document.body.classList.toggle('theme-solid-color', appStore.bgTheme === 'solid');
+  document.body.classList.toggle('reduce-motion', appStore.reduceMotion);
 });
 </script>

@@ -5,7 +5,7 @@
  * created 2026-05-31
  */
 
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router';
 
 const routes = [
   {
@@ -22,9 +22,7 @@ const routes = [
   },
   {
     path: '/admin',
-    name: 'Admin',
-    component: () => import('@/views/AdminView.vue'),
-    meta: { requiresAuth: true }
+    redirect: { path: '/', query: { view: 'admin' } }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -33,7 +31,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: window.limangeDesktop ? createWebHashHistory() : createWebHistory(),
   routes
 });
 

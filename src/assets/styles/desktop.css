@@ -1,0 +1,169 @@
+/* 桌面工作台的公共视觉约束：固定窗口骨架、原生滚动、轻量表面。 */
+:root {
+  --ink: #344157;
+  --muted: #8390a2;
+  --border: #dfe5ec;
+  --sys-blue: #2785d8;
+  --sys-text-primary: #344157;
+  --sys-text-secondary: #7c899a;
+  --liquid-shadow: 0 2px 10px #23344b05;
+}
+
+* {
+  font-family: 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+}
+body {
+  background: #f5f7fb;
+}
+body::before {
+  background-image: url('/img/manga-wallpaper.webp');
+}
+body[data-background='image']::before {
+  background-image: url('/img/wallpaper.webp');
+}
+body[data-background='solid'] .collection-banner {
+  background: #f2f6fb;
+}
+.desktop-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-route {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.app-container {
+  width: 100%;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #448fd6;
+  outline-offset: 3px;
+}
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  width: 27px;
+  height: 27px;
+  background: transparent;
+  color: #8996a8;
+  font-size: 12px;
+}
+.icon-button:hover {
+  background: #e8edf4;
+  color: #3489d7;
+}
+.subtle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 31px;
+  padding: 0 13px;
+  border: 1px solid #d9e1e9;
+  background: #ffffffd9;
+  color: #687c94;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.subtle-button:hover {
+  background: #edf5fd;
+  border-color: #aac9e8;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #becad8 transparent;
+}
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #becad8;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::selection {
+  background: #d4e8fc;
+  color: #285d8e;
+}
+
+/* 关闭持续动画和大范围模糊；表单提交状态仍可通过文字识别。 */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+body.reduce-motion .scroll-track {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .scroll-track {
+    animation: none !important;
+  }
+}
+
+/* 统计与关于内容继承同一套细边框，不再使用多层玻璃材质。 */
+.workspace .stats-total-card,
+.workspace .stats-mini-card,
+.workspace .stats-chart-card,
+.workspace .stats-report-card,
+.workspace .about-card,
+.workspace .chart-box {
+  border-radius: 3px;
+  box-shadow: none;
+  border: 1px solid #dfe5ec;
+  backdrop-filter: none;
+}
+.workspace .stats-total-card {
+  background: #edf5ff;
+}
+.workspace .stats-mini-card,
+.workspace .stats-chart-card,
+.workspace .about-card {
+  background: #fff;
+}
+.workspace .ios-section {
+  margin-bottom: 22px;
+}
+.workspace .about-card-title {
+  font-size: 16px;
+}
+.workspace .about-intro,
+.workspace .about-table {
+  font-size: 12px;
+}
